@@ -36,7 +36,7 @@ def fetch_user_comments(email):
 # @route   GET /api/v1/users/<string:email>/
 # @argv    string:email
 # TEST: http "http://localhost:8000/api/v1/users/wookwan@umich.edu/"
-@server.app.route("/api/v1/users/<string:email>/",
+@server.application.route("/api/v1/users/<string:email>/",
                   methods=['GET'])
 def get_user(email):
     db = server.model.get_db()
@@ -68,7 +68,7 @@ def get_user(email):
 # @route   PUT /api/v1/users/<string:email>/
 # @argv    string:email
 # TEST:  curl -X PUT -H "Content-Type: application/json" -d '{"fullname": "지윤성"}' http://localhost:8000/api/v1/users/wookwan@umich.edu/
-@server.app.route("/api/v1/users/<string:email>/", methods=['PUT'])
+@server.application.route("/api/v1/users/<string:email>/", methods=['PUT'])
 def put_user(email):
     # Assuming the incoming data is in JSON format
     data = flask.request.get_json()
@@ -103,7 +103,7 @@ def put_user(email):
 # @route   DELETE /api/v1/users/{email}
 # @argv    string:email
 # TEST: curl -X DELETE http://localhost:8000/api/v1/users/wookwan@umich.edu/
-@server.app.route("/api/v1/users/<string:email>/", methods=['DELETE'])
+@server.application.route("/api/v1/users/<string:email>/", methods=['DELETE'])
 def delete_user(email):
     db = server.model.get_db()
     cursor = db.cursor()
@@ -127,7 +127,7 @@ def delete_user(email):
 # @route   GET /api/v1/users/<string:email>/posts
 # @argv    string:email
 # TEST: http "http://localhost:8000/api/v1/users/wookwan@umich.edu/posts
-@server.app.route("/api/v1/users/<string:email>/posts/",
+@server.application.route("/api/v1/users/<string:email>/posts/",
                   methods=['GET'])
 def get_user_posts(email):
     db = server.model.get_db()
@@ -160,7 +160,7 @@ def get_user_posts(email):
 # @route   GET /api/v1/users/<string:email>/comments
 # @argv    string:email
 # TEST: http "http://localhost:8000/api/v1/users/wookwan@umich.edu/comments
-@server.app.route("/api/v1/users/<string:email>/comments/",
+@server.application.route("/api/v1/users/<string:email>/comments/",
                   methods=['GET'])
 def get_user_comments(email):
     db = server.model.get_db()

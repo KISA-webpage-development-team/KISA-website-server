@@ -8,7 +8,7 @@ import server
 # @route   GET /api/v1/posts/<int:postid>/
 # @params  {path} int:postid
 # TEST: "http://localhost:8000/api/v1/posts/1/"
-@server.app.route("/api/v1/posts/<int:postid>/",
+@server.application.route("/api/v1/posts/<int:postid>/",
                   methods=['GET'])
 def get_post(postid):
     db = server.model.get_db()
@@ -54,7 +54,7 @@ def get_post(postid):
 # @desc    Create a New Post with Board_type
 # @route   GET /api/v1/posts
 # @params  {body} {"type", "title", "fullname", "email", "text", "isAnnouncement"}
-@server.app.route("/api/v1/posts/", methods=['POST'])
+@server.application.route("/api/v1/posts/", methods=['POST'])
 def add_post():
     db = server.model.get_db()
     cursor = db.cursor()
@@ -95,7 +95,7 @@ def add_post():
 # @desc    Update post with new text
 # @route   PUT /api/v1/posts/<int:postid>
 # @argv    {"title", "text", "isAnnouncement"}
-@server.app.route("/api/v1/posts/<int:postid>/", methods=['PATCH'])
+@server.application.route("/api/v1/posts/<int:postid>/", methods=['PATCH'])
 def update_post(postid):
     db = server.model.get_db()
     cursor = db.cursor()
@@ -122,7 +122,7 @@ def update_post(postid):
 # @desc    Delete post
 # @route   DELETE /api/v1/posts/{postid}
 # @params  {path} int:postid
-@server.app.route("/api/v1/posts/<int:postid>/", methods=['DELETE'])
+@server.application.route("/api/v1/posts/<int:postid>/", methods=['DELETE'])
 def delete_post(postid):
     db = server.model.get_db()
     cursor = db.cursor()
@@ -144,7 +144,7 @@ def delete_post(postid):
 # @desc    Increment readCount
 # @route   PATCH /api/v1/posts/readCount/<int:postid>/
 # @params  {path} int:postid
-@server.app.route("/api/v1/posts/readCount/<int:postid>/", methods=['PATCH'])
+@server.application.route("/api/v1/posts/readCount/<int:postid>/", methods=['PATCH'])
 def increment_readcount(postid):
     db = server.model.get_db()
     cursor = db.cursor()

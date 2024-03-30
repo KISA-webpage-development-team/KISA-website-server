@@ -10,7 +10,7 @@ import server
 # @argv    {"fullname", "postid", "text"}
 # TEST:  curl -X POST -H "Content-Type: application/json" -d 
 # '{"fullname": "ajys", "postid":"0", "text":"I love KISA"}' http://localhost:8000/api/post/comments
-@server.app.route("/api/v1/comments/<int:postid>/", methods=['POST'])
+@server.application.route("/api/v1/comments/<int:postid>/", methods=['POST'])
 def post_comment(postid):
     db = server.model.get_db()
     cursor = db.cursor()
@@ -43,7 +43,7 @@ def post_comment(postid):
 # @desc    Update comment with new text
 # @route   PUT /api/v1/comments/{commentid}
 # @argv    {"commentid", "text"} ???  [NEED TO REVIEW IT AGAIN]
-@server.app.route("/api/v1/comments/<int:commentid>/", methods=['PUT'])
+@server.application.route("/api/v1/comments/<int:commentid>/", methods=['PUT'])
 def update_comment(commentid):
     db = server.model.get_db()
     cursor = db.cursor()
@@ -95,7 +95,7 @@ def delete_child_comments(comment, cursor, db):
 # @route   DELETE /api/v1/comments/{commentid}
 # @argv    int:commentid
 # TEST: curl -X DELETE http://localhost:8000/api/post/comments/1/
-@server.app.route("/api/v1/comments/<int:commentid>/", methods=['DELETE'])
+@server.application.route("/api/v1/comments/<int:commentid>/", methods=['DELETE'])
 def delete_comment(commentid):
     db = server.model.get_db()
     cursor = db.cursor()
@@ -146,7 +146,7 @@ def add_child_comments(comment, cursor):
 # @route  GET /api/v1/comments/{postid}
 # @argv   int:postid
 # TEST: http "http://localhost:8000/api/v1/comments/1/"
-@server.app.route("/api/v1/comments/<int:postid>/", methods=['GET'])
+@server.application.route("/api/v1/comments/<int:postid>/", methods=['GET'])
 def get_comments(postid):
     db = server.model.get_db()
     cursor = db.cursor()

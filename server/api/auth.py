@@ -38,7 +38,7 @@ def token_required(f):
 # @desc    Check whether user already exists in database
 # @route   GET /api/v1/auth/userExists?email={email}
 # @params  {query} string:email
-@server.app.route('/api/v1/auth/userExists/', methods=['GET'])
+@server.application.route('/api/v1/auth/userExists/', methods=['GET'])
 def check_existing_user():
     request_email = flask.request.args["email"]
 
@@ -68,7 +68,7 @@ def check_existing_user():
 # @desc    Check whether user already exists in database
 # @route   GET /api/v1/auth/signup
 # @params  {body} string:email string:name
-@server.app.route('/api/v1/auth/signup/', methods=['POST'])
+@server.application.route('/api/v1/auth/signup/', methods=['POST'])
 def add_user():
     data = flask.request.get_json()
 
@@ -96,7 +96,7 @@ def add_user():
 # @desc    Check whether user is admin using email
 # @route   GET /api/v1/auth/isAdmin?email={email}
 # @params  {query} string:email
-@server.app.route('/api/v1/auth/isAdmin/', methods=['GET'])
+@server.application.route('/api/v1/auth/isAdmin/', methods=['GET'])
 def is_admin():
     request_email = flask.request.args["email"]
 
@@ -121,7 +121,7 @@ def is_admin():
 
 
 # TEST APIs ---------------------------------------------------------
-@server.app.route('/api/v1/auth/token-test/', methods=['POST'])
+@server.application.route('/api/v1/auth/token-test/', methods=['POST'])
 def token_test():
     token = flask.request.headers.get('Authorization')
     if not token:
@@ -139,11 +139,11 @@ def token_test():
       return flask.jsonify({'message': 'Invalid token'}), 401
 
 # token_required decorator example
-@server.app.route('/api/v1/auth/decorate-test/', methods=['GET'])
+@server.application.route('/api/v1/auth/decorate-test/', methods=['GET'])
 @token_required # 이걸 붙이면 token (유저가 로그인된 상태)이 없으면 401 Missing Token 에러가 뜸
 def decorate_test(current_user):
    return flask.jsonify({'message': 'WOW DECORATE PLEASE~'}), 200
 
 if __name__ == "__main__":
-    server.app.run(debug=True, port=8000)
+    server.application.run(debug=True, port=8000)
 # -----------------------------------------------------------------

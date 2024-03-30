@@ -21,7 +21,7 @@ def count_comments(cursor, posts):
 # @params  {path} string:board_type
 # @args    size, page
 # TEST: "http://localhost:8000/api/v1/boards/community/posts"
-@server.app.route("/api/v1/boards/<string:board_type>/posts/",
+@server.application.route("/api/v1/boards/<string:board_type>/posts/",
                   methods=['GET'])
 def get_posts_by_board_type(board_type):
     db = server.model.get_db()
@@ -85,7 +85,7 @@ def get_posts_by_board_type(board_type):
 # @route   GET /api/v1/boards/<string:board_type>/announcements
 # @params  {path} string:board_type
 # TEST: "http://localhost:8000/api/v1/boards/community/announcements"
-@server.app.route("/api/v1/boards/<string:board_type>/announcements/",
+@server.application.route("/api/v1/boards/<string:board_type>/announcements/",
                   methods=['GET'])
 def get_announcements_by_board_type(board_type):
     db = server.model.get_db()
