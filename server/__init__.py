@@ -9,7 +9,7 @@ header_text = '''
 footer_text = '</body>\n</html>'
 
 # instructions for the API goes here
-instructions = '''=
+instructions = '''
     <p>This is the production API server for the KISA website.
     Instructions are to be implemented. Still in development.</p>\n
     '''
