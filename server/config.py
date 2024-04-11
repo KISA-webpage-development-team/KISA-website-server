@@ -16,3 +16,9 @@ MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 
 # Database file is var/insta485.sqlite3
 DATABASE_FILENAME = SERVER_ROOT/'var'/'kisaweb.sqlite3'
+
+# mySQL configurations
+MYSQL_HOST = 'awseb-e-bxtm2zpybp-stack-awsebrdsdatabase-7pth6zviixzm.crcom8asae83.us-east-2.rds.amazonaws.com'
+MYSQL_USER = 'admin'
+MYSQL_PASSWORD = 'Kisa_umich_23'
+MYSQL_DB = 'ebdb'

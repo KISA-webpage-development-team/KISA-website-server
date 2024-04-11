@@ -41,20 +41,17 @@ def token_required(f):
 @server.application.route('/api/v1/auth/userExists/', methods=['GET'])
 def check_existing_user():
     request_email = flask.request.args["email"]
-
-    db = server.model.get_db()
-    cursor = db.cursor()
-
+    cursor = server.model.cursor()
 
     # Fetch the comment based on commentid
     cursor.execute(
         "SELECT * FROM users "
-        "WHERE email = ?",
-        (request_email,)
+        "WHERE email = %(email)s",
+        {
+            'email': request_email
+        }
     )
     user = cursor.fetchone()
-
-   
     
     if user:
        return flask.jsonify({
@@ -77,17 +74,20 @@ def add_user():
                 "message": "Invalid request body"
             }), 400
     
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     # Fetch the comment based on commentid
     # data['name'] = korean fullname
     cursor.execute(
         "INSERT INTO users "
         "(email, fullname) "
-        "VALUES (?, ?) ",
-        (data['email'], data['name'])
+        "VALUES (%(email)s, %(fullname)s) ",
+        {
+            'email': data['email'],
+            'fullname': data['name']
+        }
     )
+    server.model.commit_close(cursor)
 
     return flask.jsonify({
        "message": f"user {data['email']} created"
@@ -100,14 +100,15 @@ def add_user():
 def is_admin():
     request_email = flask.request.args["email"]
 
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     # Fetch the comment based on commentid
     cursor.execute(
         "SELECT * FROM admins "
-        "WHERE email = ?",
-        (request_email,)
+        "WHERE email = %(email)s",
+        {
+            'email': request_email
+        }
     )
     email = cursor.fetchone()
 

@@ -12,6 +12,8 @@ from server.api.boards import get_announcements_by_board_type
 from server.api.posts import get_post
 from server.api.posts import add_post
 from server.api.posts import update_post
+from server.api.posts import delete_post
+from server.api.posts import increment_readcount
 from server.api.users import get_user
 from server.api.users import put_user
 from server.api.users import delete_user

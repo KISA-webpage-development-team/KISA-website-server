@@ -7,7 +7,7 @@ VALUES
 INSERT INTO users(email, fullname)
 VALUES
 ('dongsubk@umich.edu', '김동섭'),
--- ('jiohin@umich.edu', '인지오'),
+('jiohin@umich.edu', '인지오'),
 ('wookwan@umich.edu', '권우관');
 
 INSERT INTO posts(type, title, fullname, email, text, readCount, isAnnouncement)

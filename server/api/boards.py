@@ -1,5 +1,4 @@
 import flask
-import os
 import server
 
 # BOARDS API ------------------------------------------------------------
@@ -10,8 +9,10 @@ def count_comments(cursor, posts):
         cursor.execute(
             "SELECT COUNT(*) "
             "FROM comments "
-            "WHERE comments.postid = ?",
-            (post["postid"],)
+            "WHERE comments.postid = %(comments_postid)s",
+            {
+                'comments_postid': post["postid"]
+            }
         )
         comments_count = cursor.fetchone()["COUNT(*)"]
         post["commentsCount"] = comments_count
@@ -24,9 +25,7 @@ def count_comments(cursor, posts):
 @server.application.route("/api/v1/boards/<string:board_type>/posts/",
                   methods=['GET'])
 def get_posts_by_board_type(board_type):
-    db = server.model.get_db()
-    cursor = db.cursor()
-    
+    cursor = server.model.cursor()
 
     # Initialize flask request arguments
     size = flask.request.args.get(
@@ -48,10 +47,14 @@ def get_posts_by_board_type(board_type):
     cursor.execute(
         "SELECT postid, type, title, fullname, readCount, isAnnouncement, created "
         "FROM posts "
-        "WHERE type = ? AND isAnnouncement = ? "
+        "WHERE type = %(type)s AND isAnnouncement = %(isAnnouncement)s "
         "ORDER BY postid DESC "
-        "LIMIT ?",
-        (board_type, 0, size * (page + 1))
+        "LIMIT %(limit)s",
+        {
+            'type': board_type,
+            'isAnnouncement': 0,
+            'limit': size * (page + 1)
+        }
     )
     posts = cursor.fetchall()
 
@@ -88,15 +91,17 @@ def get_posts_by_board_type(board_type):
 @server.application.route("/api/v1/boards/<string:board_type>/announcements/",
                   methods=['GET'])
 def get_announcements_by_board_type(board_type):
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     cursor.execute(
         "SELECT postid, type, title, fullname, readCount, isAnnouncement, created "
         "FROM posts "
-        "WHERE type = ? AND isAnnouncement = ? "
+        "WHERE type = %(type)s AND isAnnouncement = %(isAnnouncement)s "
         "ORDER BY postid DESC",
-        (board_type, 1)
+        {
+            'type': board_type,
+            'isAnnouncement': 1
+        }
     )
     announcements = cursor.fetchall()
 

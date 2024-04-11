@@ -1,29 +1,34 @@
 import flask
 import server
 
-# TODO: We need a way to authenticate admin users
 def is_admin(authorization_header):
     admin_token = "your_admin_token"
     return authorization_header == f"Bearer {admin_token}"
 
 def fetch_user_posts(email):
-    # Assuming you have a database connection and cursor
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     # Fetch posts associated with the given email
-    cursor.execute("SELECT * FROM posts WHERE email = ?", (email,))
+    cursor.execute(
+        'SELECT * FROM posts WHERE email = %(email)s',
+        {
+            'email': email
+        }
+    )
     user_posts = cursor.fetchall()
 
     return user_posts
 
 def fetch_user_comments(email):
-    # Assuming you have a database connection and cursor
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     # Fetch comments associated with the given email
-    cursor.execute("SELECT * FROM comments WHERE email = ?", (email,))
+    cursor.execute(
+        'SELECT * FROM comments WHERE email = %(email)s',
+        {
+            'email': email
+        }
+    )
     user_comments = cursor.fetchall()
 
 
@@ -39,15 +44,16 @@ def fetch_user_comments(email):
 @server.application.route("/api/v1/users/<string:email>/",
                   methods=['GET'])
 def get_user(email):
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     # Fetch the user based on email
     cursor.execute(
         "SELECT * "
         "FROM users "
-        "WHERE email = ?",
-        (email, )
+        "WHERE email = %(email)s",
+        {
+            'email': email
+        }
     )
     user = cursor.fetchall()
 
@@ -84,38 +90,49 @@ def put_user(email):
     # if not is_admin(flask.request.headers.get('Authorization')):
     #     return flask.jsonify({'error': 'Unauthorized'}), 401
     
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     cursor.execute(
         "UPDATE users "
-        "SET fullname = ? "
-        "WHERE email = ? ", 
-        (fullname, email)
+        "SET fullname = %(fullname)s "
+        "WHERE email = %(email)s ", 
+        {
+            'fullname': fullname,
+            'email': email
+        }
     )
 
-    db.commit()
+    server.model.commit_close(cursor)
 
     # Return a JSON response indicating success
     return flask.jsonify({'message': 'User updated successfully'}), 200
 
-# @desc    Delete user TODO: only admin?
+# @desc    Delete user
 # @route   DELETE /api/v1/users/{email}
 # @argv    string:email
 # TEST: curl -X DELETE http://localhost:8000/api/v1/users/wookwan@umich.edu/
 @server.application.route("/api/v1/users/<string:email>/", methods=['DELETE'])
 def delete_user(email):
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     # Check if the user exists
-    cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
+    cursor.execute(
+        'SELECT * FROM users WHERE email = %(email)s',
+        {
+            'email': email
+        }
+    )
     existing_user = cursor.fetchone()
 
     if existing_user:
         # Delete the user from the database
-        cursor.execute('DELETE FROM users WHERE email = ?', (email,))
-        db.commit()
+        cursor.execute(
+            'DELETE FROM users WHERE email = %(email)s',
+            {
+                'email': email
+            }
+        )
+        server.model.commit_close(cursor)
 
         # Return a success message
         return flask.jsonify({'message': f'user with email {email} deleted successfully'}), 200
@@ -130,15 +147,16 @@ def delete_user(email):
 @server.application.route("/api/v1/users/<string:email>/posts/",
                   methods=['GET'])
 def get_user_posts(email):
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     # Fetch the user based on email
     cursor.execute(
         "SELECT * "
         "FROM users "
-        "WHERE email = ?",
-        (email, )
+        "WHERE email = %(email)s",
+        {
+            'email': email
+        }
     )
     user = cursor.fetchall()
 
@@ -152,7 +170,6 @@ def get_user_posts(email):
     if user_posts is None:
         return flask.jsonify({'error': 'User posts not found'}), 404
     
-    
     # Return the user's posts
     return flask.jsonify({'posts': user_posts}), 200
 
@@ -163,15 +180,16 @@ def get_user_posts(email):
 @server.application.route("/api/v1/users/<string:email>/comments/",
                   methods=['GET'])
 def get_user_comments(email):
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     # Fetch the user based on email
     cursor.execute(
         "SELECT * "
         "FROM users "
-        "WHERE email = ?",
-        (email, )
+        "WHERE email = %(email)s",
+        {
+            'email': email
+        }
     )
     user = cursor.fetchall()
 

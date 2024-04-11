@@ -2,6 +2,7 @@
 
 import flask
 from flask_cors import CORS
+from flask_mysqldb import MySQL
 
 # index page texts
 header_text = '''
@@ -18,6 +19,7 @@ instructions = '''
 application = flask.Flask(__name__)
 
 application.config.from_object('server.config')
+db = MySQL(application)
 CORS(application, origins=["https://www.umichkisa.com", "http://localhost:3000"])
 
 # add a rule for the index page.

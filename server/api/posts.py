@@ -11,31 +11,22 @@ import server
 @server.application.route("/api/v1/posts/<int:postid>/",
                   methods=['GET'])
 def get_post(postid):
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
 
     # Fetch the post based on postid
     cursor.execute(
         "SELECT * "
         "FROM posts "
-        "WHERE postid = ?",
-        (postid, )
+        "WHERE postid = %(postid)s",
+        {
+            'postid': postid
+        }
     )
     post = cursor.fetchone()
 
     # return 404 NOT FOUND if no posts are in board type
     if not post:
         return flask.jsonify({'error': 'No Post Found'}), 404
-    
-    # print(flask.request.headers)
-
-    # Handle readCounts
-    # if str(postid) in flask.request.cookies:
-    #     cursor.execute('''
-    #         UPDATE posts
-    #         SET readCount = ?
-    #         WHERE postid = ?
-    #     ''', (post['readCount'] + 1, post['postid']))
 
     # render context
     context = {
@@ -56,8 +47,8 @@ def get_post(postid):
 # @params  {body} {"type", "title", "fullname", "email", "text", "isAnnouncement"}
 @server.application.route("/api/v1/posts/", methods=['POST'])
 def add_post():
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
+
     # Assuming the incoming data is in JSON format
     data = flask.request.get_json()
 
@@ -75,19 +66,23 @@ def add_post():
     if not type or not title or not fullname or not email or not text or not 'isAnnouncement' in data:
             return flask.jsonify({'error': 'Missing required fields'}), 400
 
-    print(fullname)
-    print(email)
-
     # Perform the actual logic of post
-    # TODO: is type included in sql database - NO - how do we access it? (it was acessed in boards.py)
     cursor.execute(
         "INSERT INTO posts "
         "(type, title, fullname, email, text, readCount, isAnnouncement) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?) ", 
-        (type, title, fullname, email, text, readCount, isAnnouncement)
+        "VALUES (%(type)s, %(title)s, %(fullname)s, %(email)s, %(text)s, %(readCount)s, isAnnouncement) ", 
+        {
+            'type': type,
+            'title': title,
+            'fullname': fullname,
+            'email': email,
+            'text': text,
+            'readCount': readCount,
+            'isAnnouncement': isAnnouncement
+        }
     )
 
-    db.commit()
+    server.model.commit_close(cursor)
 
     # Return a JSON response indicating success
     return flask.jsonify({'message': 'Post created successfully'}), 201
@@ -97,8 +92,7 @@ def add_post():
 # @argv    {"title", "text", "isAnnouncement"}
 @server.application.route("/api/v1/posts/<int:postid>/", methods=['PATCH'])
 def update_post(postid):
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
     # Assuming the new post data is sent in the request body as JSON
     data = flask.request.get_json()
     print(data)
@@ -109,12 +103,17 @@ def update_post(postid):
     
     cursor.execute(
         "UPDATE posts "
-        "SET text = ?, title = ?, isAnnouncement = ? "
-        "WHERE postid = ? ", 
-        (data.get('text'), data.get('title'), data.get('isAnnouncement'), postid)
+        "SET text = %(text)s, title = %(title)s, isAnnouncement = %(isAnnouncement)s "
+        "WHERE postid = %(postid)s ", 
+        {
+            'text': data.get('text'),
+            'title': data.get('title'),
+            'isAnnouncement': data.get('isAnnouncement'),
+            'postid': postid
+        }
     )
 
-    db.commit()
+    server.model.commit_close(cursor)
 
     # Return a JSON response indicating success
     return flask.jsonify({'message': 'Post updated successfully'}), 200
@@ -124,16 +123,21 @@ def update_post(postid):
 # @params  {path} int:postid
 @server.application.route("/api/v1/posts/<int:postid>/", methods=['DELETE'])
 def delete_post(postid):
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
     # Check if the post with the specified postid exists
-    cursor.execute('SELECT * FROM posts WHERE postid = ?', (postid,))
+
+    cursor.execute(
+        'SELECT * FROM posts WHERE postid = %(postid)s',
+        {
+            'postid': postid
+        }
+    )
     existing_post = cursor.fetchone()
 
     if existing_post:
         # Delete the post from the database
         cursor.execute('DELETE FROM posts WHERE postid = ?', (postid,))
-        db.commit()
+        server.model.commit_close(cursor)
 
         # Return a success message
         return flask.jsonify({'message': f'Post {postid} deleted successfully'}), 204
@@ -146,10 +150,14 @@ def delete_post(postid):
 # @params  {path} int:postid
 @server.application.route("/api/v1/posts/readCount/<int:postid>/", methods=['PATCH'])
 def increment_readcount(postid):
-    db = server.model.get_db()
-    cursor = db.cursor()
+    cursor = server.model.cursor()
     # Check if the post with the specified postid exists
-    cursor.execute('SELECT * FROM posts WHERE postid = ?', (postid,))
+    cursor.execute(
+        'SELECT * FROM posts WHERE postid = %(postid)s',
+        {
+            'postid': postid
+        }
+    )
     existing_post = cursor.fetchone()
 
     if existing_post:
@@ -158,12 +166,15 @@ def increment_readcount(postid):
 
         # Update readCount of existing post
         cursor.execute(
-        "UPDATE posts "
-        "SET readCount = ? "
-        "WHERE postid = ? ",
-        (cur_readCount + 1, postid)
-    )
-        db.commit()
+            "UPDATE posts "
+            "SET readCount = %(readCount)s "
+            "WHERE postid = %(postid)s ",
+            {
+                'readCount': cur_readCount + 1,
+                'postid': postid
+            }
+        )
+        server.model.commit_close(cursor)
 
         # Return a success message
         return flask.jsonify({'message': f'Post {postid} readCount is now {cur_readCount + 1}'}), 200
