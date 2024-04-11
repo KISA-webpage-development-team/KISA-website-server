@@ -1,5 +1,4 @@
 blinker==1.7.0
-certifi @ file:///private/tmp/certifi-20240307-4614-15z07l/certifi-2024.2.2
 cffi==1.16.0
 click==8.1.7
 cryptography==42.0.5
