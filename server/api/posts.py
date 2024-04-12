@@ -61,7 +61,6 @@ def add_post():
     isAnnouncement = data.get('isAnnouncement') # boolean
     readCount = 0
 
-
     # Perform validation on the input data
     if not type or not title or not fullname or not email or not text or not 'isAnnouncement' in data:
             return flask.jsonify({'error': 'Missing required fields'}), 400
@@ -136,7 +135,12 @@ def delete_post(postid):
 
     if existing_post:
         # Delete the post from the database
-        cursor.execute('DELETE FROM posts WHERE postid = ?', (postid,))
+        cursor.execute(
+            'DELETE FROM posts WHERE postid = %(postid)s',
+            {
+                'postid': postid
+            }
+        )
         server.model.commit_close(cursor)
 
         # Return a success message

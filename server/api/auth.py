@@ -67,30 +67,38 @@ def check_existing_user():
 # @params  {body} string:email string:name
 @server.application.route('/api/v1/auth/signup/', methods=['POST'])
 def add_user():
-    data = flask.request.get_json()
+    body = flask.request.get_json()
 
-    if not data:
-            return flask.jsonify({
-                "message": "Invalid request body"
-            }), 400
+    # No body in request
+    if not body:
+        return flask.jsonify({'message': 'Bad request, empty body'}), 400
     
+    # Missing required fields
+    if not (
+       body['fullname'] or
+       body['email'] or
+       body['bornYear'] or
+       body['bornMonth'] or
+       body['bornDate'] or
+       body['major'] or
+       body['gradYear']
+    ):
+       return flask.jsonify({'message': 'Bad request, required fields missing'}), 400
+
     cursor = server.model.cursor()
 
-    # Fetch the comment based on commentid
-    # data['name'] = korean fullname
     cursor.execute(
-        "INSERT INTO users "
-        "(email, fullname) "
-        "VALUES (%(email)s, %(fullname)s) ",
-        {
-            'email': data['email'],
-            'fullname': data['name']
-        }
+        "INSERT INTO users (" +
+        ', '.join(body.keys()) +
+        ") VALUES (" +
+        ', '.join(map(lambda x: '%(' + x + ')s', body.keys())) + ")",
+        body
     )
+
     server.model.commit_close(cursor)
 
     return flask.jsonify({
-       "message": f"user {data['email']} created"
+       "message": f"user {body['email']} created"
     }), 201
 
 # @desc    Check whether user is admin using email

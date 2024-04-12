@@ -55,56 +55,54 @@ def get_user(email):
             'email': email
         }
     )
-    user = cursor.fetchall()
+    user = cursor.fetchone()
 
     # return 404 NOT FOUND
     if not user:
         return flask.jsonify({'error': 'No User Found'}), 404
 
     # render context
-    context = {
-        'email': email,
-        'fullname': user[0]['fullname'],
-        'created': user[0]['created']
-    }
+    user['url'] = flask.request.url
+    context = user
 
     return flask.jsonify(**context), 200
 
-# @desc    Update user's fullname
+# @desc    Update user info
 # @route   PUT /api/v1/users/<string:email>/
 # @argv    string:email
 # TEST:  curl -X PUT -H "Content-Type: application/json" -d '{"fullname": "지윤성"}' http://localhost:8000/api/v1/users/wookwan@umich.edu/
 @server.application.route("/api/v1/users/<string:email>/", methods=['PUT'])
 def put_user(email):
     # Assuming the incoming data is in JSON format
-    data = flask.request.get_json()
+    body = flask.request.get_json()
 
-    # Extract relevant information from the JSON data
-    fullname = data.get('fullname')
+    # If the body is empty, do nothing
+    if not body:
+        return flask.jsonify({'message': 'Bad request, empty body'}), 400
+    
+    # Iterate through body dict to compose SQL query string
+    execution_sequence = []
+    execution_dict = {}
+    for field in body:
+        if body[field]:
+            execution_sequence.append(
+                f"{field} = %({field})s"
+            )
+            execution_dict[field] = body[field]
 
-    # Perform validation on the input data
-    if not fullname or not email:
-        return flask.jsonify({'error': 'Missing required fields'}), 400
-    
-    # Authenticate Admin
-    # if not is_admin(flask.request.headers.get('Authorization')):
-    #     return flask.jsonify({'error': 'Unauthorized'}), 401
-    
+    execution_dict['email'] = email
+
     cursor = server.model.cursor()
 
     cursor.execute(
-        "UPDATE users "
-        "SET fullname = %(fullname)s "
-        "WHERE email = %(email)s ", 
-        {
-            'fullname': fullname,
-            'email': email
-        }
+        "UPDATE users SET " +
+        ', '.join(execution_sequence) +
+        " WHERE email = %(email)s",
+        execution_dict
     )
 
     server.model.commit_close(cursor)
 
-    # Return a JSON response indicating success
     return flask.jsonify({'message': 'User updated successfully'}), 200
 
 # @desc    Delete user
@@ -137,7 +135,6 @@ def delete_user(email):
         # Return a success message
         return flask.jsonify({'message': f'user with email {email} deleted successfully'}), 200
     else:
-
         return flask.jsonify({'error': 'User not found'}), 404
     
 # @desc    Get all posts created by user
@@ -184,8 +181,7 @@ def get_user_comments(email):
 
     # Fetch the user based on email
     cursor.execute(
-        "SELECT * "
-        "FROM users "
+        "SELECT * FROM users "
         "WHERE email = %(email)s",
         {
             'email': email
