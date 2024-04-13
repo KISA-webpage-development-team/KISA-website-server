@@ -69,7 +69,7 @@ def add_post():
     cursor.execute(
         "INSERT INTO posts "
         "(type, title, fullname, email, text, readCount, isAnnouncement) "
-        "VALUES (%(type)s, %(title)s, %(fullname)s, %(email)s, %(text)s, %(readCount)s, isAnnouncement) ", 
+        "VALUES (%(type)s, %(title)s, %(fullname)s, %(email)s, %(text)s, %(readCount)s, %(isAnnouncement)s) ", 
         {
             'type': type,
             'title': title,
