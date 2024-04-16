@@ -43,48 +43,92 @@ def get_post(postid):
     return flask.jsonify(**context)
     
 # @desc    Create a New Post with Board_type
-# @route   GET /api/v1/posts
+# @route   POST /api/v1/posts
 # @params  {body} {"type", "title", "fullname", "email", "text", "isAnnouncement"}
 @server.application.route("/api/v1/posts/", methods=['POST'])
 def add_post():
-    cursor = server.model.cursor()
+    # Fetch body from request
+    body = flask.request.get_json()
 
-    # Assuming the incoming data is in JSON format
-    data = flask.request.get_json()
+    # Incoming post is from announcement board
+    if body['type'] == 'announcement':
+        # Error Handling
+        # announcement posts cannot be an announcement
+        if body['isAnnouncement']:
+            return flask.jsonify({'error': 'Bad request: Announcement post cannot be an announcement itself'}), 400
+        
+        # announcement post missing tag field
+        if 'tag' not in body:
+            return flask.jsonify({'error': 'Bad request: Announcement post missing tag field'}), 400
+        
+        # fetch tag and see if the tag is custom or not
+        # if custom, only one post of type 'announcement' is inserted to db
+        if body['tag'] == 'custom':
+            cursor = server.model.cursor()
 
-    # Extract relevant information from the JSON data
-    type = data.get('type')
-    title = data.get('title')
-    fullname = data.get('fullname')
-    email = data.get('email')
-    text = data.get('text')
-    isAnnouncement = data.get('isAnnouncement') # boolean
-    readCount = 0
+            # remove 'tag' key from body
+            del body['tag']
+            
+            fields = ", ".join(body.keys())
+            fields_format = ", ".join(map(lambda x: "%(" + x + ")s", body.keys()))
+            cursor.execute(
+                "INSERT INTO posts (" +
+                fields + ") VALUES (" +
+                fields_format + ") ",
+                body
+            )
+            server.model.commit_close(cursor)
 
-    # Perform validation on the input data
-    if not type or not title or not fullname or not email or not text or not 'isAnnouncement' in data:
-            return flask.jsonify({'error': 'Missing required fields'}), 400
+            return flask.jsonify({'message': f'{body['type']} post created successfully'}), 201
 
-    # Perform the actual logic of post
-    cursor.execute(
-        "INSERT INTO posts "
-        "(type, title, fullname, email, text, readCount, isAnnouncement) "
-        "VALUES (%(type)s, %(title)s, %(fullname)s, %(email)s, %(text)s, %(readCount)s, %(isAnnouncement)s) ", 
-        {
-            'type': type,
-            'title': title,
-            'fullname': fullname,
-            'email': email,
-            'text': text,
-            'readCount': readCount,
-            'isAnnouncement': isAnnouncement
-        }
-    )
+        # if else, two posts of type 'announcement' and type of tag is inserted to db
+        else:
+            cursor = server.model.cursor()
 
-    server.model.commit_close(cursor)
+            # save tag
+            orig_type = body['type']
+            tag = body['tag']
+            del body['tag']
 
-    # Return a JSON response indicating success
-    return flask.jsonify({'message': 'Post created successfully'}), 201
+            fields = ", ".join(body.keys())
+            fields_format = ", ".join(map(lambda x: "%(" + x + ")s", body.keys()))
+            cursor.execute(
+                "INSERT INTO posts (" +
+                fields + ") VALUES (" +
+                fields_format + ") ",
+                body
+            )
+
+            # change type to saved tag and set as announcement
+            body['type'] = tag
+            body['isAnnouncement'] = True
+            body['title'] = body['title'].split(']')[1].strip()
+            
+            cursor.execute(
+                "INSERT INTO posts (" +
+                fields + ") VALUES (" +
+                fields_format + ") ",
+                body
+            )
+            server.model.commit_close(cursor)
+
+            return flask.jsonify({'message': f'{orig_type} and {tag} posts created successfully'}), 201
+        
+    # Incoming post is from general boards
+    else:
+        cursor = server.model.cursor()
+        
+        fields = ", ".join(body.keys())
+        fields_format = ", ".join(map(lambda x: "%(" + x + ")s", body.keys()))
+        cursor.execute(
+            "INSERT INTO posts (" +
+            fields + ") VALUES (" +
+            fields_format + ") ",
+            body
+        )
+        server.model.commit_close(cursor)
+
+        return flask.jsonify({'message': f'{body['type']} post created successfully'}), 201
 
 # @desc    Update post with new text
 # @route   PUT /api/v1/posts/<int:postid>
