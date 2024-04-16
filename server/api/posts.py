@@ -79,7 +79,7 @@ def add_post():
             )
             server.model.commit_close(cursor)
 
-            return flask.jsonify({'message': f'{body['type']} post created successfully'}), 201
+            return flask.jsonify({'message': 'post created successfully'}), 201
 
         # if else, two posts of type 'announcement' and type of tag is inserted to db
         else:
