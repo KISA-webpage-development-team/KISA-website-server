@@ -111,9 +111,6 @@ def put_user(email):
 # TEST: curl -X DELETE http://localhost:8000/api/v1/users/wookwan@umich.edu/
 @server.application.route("/api/v1/users/<string:email>/", methods=['DELETE'])
 def delete_user(email):
-
-    test()
-
     cursor = server.model.cursor()
 
     # Check if the user exists
