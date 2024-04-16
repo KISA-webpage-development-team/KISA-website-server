@@ -128,7 +128,7 @@ def add_post():
         )
         server.model.commit_close(cursor)
 
-        return flask.jsonify({'message': f'{body['type']} post created successfully'}), 201
+        return flask.jsonify({'message': 'post created successfully'}), 201
 
 # @desc    Update post with new text
 # @route   PUT /api/v1/posts/<int:postid>
