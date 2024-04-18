@@ -210,7 +210,7 @@ def update_post(postid):
                 # fullname and email is unchanged
                 new_post_data = prev_announcement_post
                 new_post_data['type'] = boardTag[new_tag_raw]
-                new_post_data['title'] = f'[{new_tag_raw}] {new_title}'
+                new_post_data['title'] = f'{new_title}'
                 new_post_data['text'] = body['text']
                 new_post_data['isAnnouncement'] = True
 
