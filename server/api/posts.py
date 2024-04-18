@@ -1,5 +1,7 @@
 import flask
 import server
+from .helpers import token_required
+from .helpers import boardTag
 
 # POSTS API ------------------------------------------------------------
 # /api/v1/posts
@@ -45,6 +47,7 @@ def get_post(postid):
 # @desc    Create a New Post with Board_type
 # @route   POST /api/v1/posts
 # @params  {body} {"type", "title", "fullname", "email", "text", "isAnnouncement"}
+# @token_required
 @server.application.route("/api/v1/posts/", methods=['POST'])
 def add_post():
     # Fetch body from request
@@ -62,8 +65,8 @@ def add_post():
             return flask.jsonify({'error': 'Bad request: Announcement post missing tag field'}), 400
         
         # fetch tag and see if the tag is custom or not
-        # if custom, only one post of type 'announcement' is inserted to db
-        if body['tag'] == 'custom':
+        # boardtype is announcement + tag is empty = custom tagged announcement post
+        if not body['tag']:
             cursor = server.model.cursor()
 
             # remove 'tag' key from body
@@ -81,7 +84,9 @@ def add_post():
 
             return flask.jsonify({'message': 'post created successfully'}), 201
 
-        # if else, two posts of type 'announcement' and type of tag is inserted to db
+        # boardtype is announcement + tag is unempty =
+        # tagged announcement post
+        # 2 different posts are generated
         else:
             cursor = server.model.cursor()
 
@@ -118,6 +123,9 @@ def add_post():
     else:
         cursor = server.model.cursor()
         
+        # tag field from body is unncessary, delete
+        del body['tag']
+        
         fields = ", ".join(body.keys())
         fields_format = ", ".join(map(lambda x: "%(" + x + ")s", body.keys()))
         cursor.execute(
@@ -132,34 +140,207 @@ def add_post():
 
 # @desc    Update post with new text
 # @route   PUT /api/v1/posts/<int:postid>
-# @argv    {"title", "text", "isAnnouncement"}
 @server.application.route("/api/v1/posts/<int:postid>/", methods=['PATCH'])
 def update_post(postid):
-    cursor = server.model.cursor()
-    # Assuming the new post data is sent in the request body as JSON
-    data = flask.request.get_json()
-    print(data)
+    # Fetch body from request
+    body = flask.request.get_json()
 
-    # Placeholder validation: Check if required fields are present
-    if not data or 'text' not in data or 'title' not in data or 'isAnnouncement' not in data:
-        return flask.jsonify({'error': 'Missing required fields'}), 400
-    
+    # Fetch previous post by postid
+    cursor = server.model.cursor()
     cursor.execute(
-        "UPDATE posts "
-        "SET text = %(text)s, title = %(title)s, isAnnouncement = %(isAnnouncement)s "
-        "WHERE postid = %(postid)s ", 
+        "SELECT * FROM posts WHERE postid = %(postid)s",
         {
-            'text': data.get('text'),
-            'title': data.get('title'),
-            'isAnnouncement': data.get('isAnnouncement'),
             'postid': postid
         }
     )
+    prev_post = cursor.fetchone()
 
-    server.model.commit_close(cursor)
+    # post to be updated is from announcement board
+    if prev_post['type'] == 'announcement':
+        prev_announcement_post = prev_post
+        new_tag_raw = body['title'].split(']')[0][1::]
+        prev_tag_raw = body['title'].split(']')[1][2::]
+        new_title = body['title'].split(']')[2][1::]
 
-    # Return a JSON response indicating success
-    return flask.jsonify({'message': 'Post updated successfully'}), 200
+        # handle error: announcement post cannot be an announcement itself
+        if body['isAnnouncement']:
+            return flask.jsonify({'error': 'Bad request: Announcement post cannot be an announcement itself'}), 400
+
+        # Case 1: prev_tag_raw is custom: post only exists in announcement
+        if prev_tag_raw not in boardTag:
+            # Case 1-1: new_tag_raw is custom
+            # 1) UPDATE post in announcement
+            if new_tag_raw not in boardTag:
+                cursor.execute(
+                    "UPDATE posts "
+                    "SET "
+                    "title = %(title)s, text = %(text)s, isAnnouncement = %(isAnnouncement)s "
+                    "WHERE postid = %(postid)s",
+                    {
+                        'title': f'[{new_tag_raw}] {new_title}',
+                        'text': body['text'],
+                        'isAnnouncement': body['isAnnouncement'],
+                        'postid': prev_announcement_post['postid']
+                    }
+                )
+                server.model.commit_close(cursor)
+                return flask.jsonify({'message': 'post in announcement board updated'}), 200
+
+            # Case 1-2: new_tag_raw is not custom
+            # 1) UPDATE post in announcement
+            # 2) INSERT post into boardTag[new_tag_raw]
+            else:
+                # 1) UPDATE post in announcement
+                cursor.execute(
+                    "UPDATE posts "
+                    "SET "
+                    "title = %(title)s, text = %(text)s, isAnnouncement = %(isAnnouncement)s "
+                    "WHERE postid = %(postid)s",
+                    {
+                        'title': f'[{new_tag_raw}] {new_title}',
+                        'text': body['text'],
+                        'isAnnouncement': body['isAnnouncement'],
+                        'postid': prev_announcement_post['postid'],
+                    }
+                )
+
+                # 2) INSERT post into boardTag[new_tag_raw]
+
+                # modify prev_announcement_post to use as placeholder
+                # fullname and email is unchanged
+                new_post_data = prev_announcement_post
+                new_post_data['type'] = boardTag[new_tag_raw]
+                new_post_data['title'] = f'[{new_tag_raw}] {new_title}'
+                new_post_data['text'] = body['text']
+                new_post_data['isAnnouncement'] = True
+
+                # delete postid field to evade duplicate postid, which is a primary key
+                del new_post_data['postid']
+
+                # fetch all fields required to insert new post
+                fields = ", ".join(new_post_data.keys())
+                fields_format = ", ".join(map(lambda x: "%(" + x + ")s", new_post_data.keys()))
+
+                cursor.execute(
+                    "INSERT INTO posts (" +
+                    fields + ") VALUES (" +
+                    fields_format + ") ",
+                    new_post_data
+                )
+
+                server.model.commit_close(cursor)
+                return flask.jsonify(
+                    {
+                        'message':'post in announcement updated, post inserted into general board'
+                    }
+                ), 200
+
+        # Case 2: prev_tag_raw is not custom: post exists in announcement AND
+        #         boardTag[prev_tag_raw] board
+        else:
+            # compose title and type of matching post in general boards
+            general_title = prev_announcement_post['title'].split(']')[1][1::]
+
+            # Case 2-1: new_tag_raw is custom
+            # 1) UPDATE post in announcement
+            # 2) DELETE post in boardTag[prev_tag_raw]
+            if new_tag_raw not in boardTag:
+                # 1) UPDATE post in announcement
+                cursor.execute(
+                    "UPDATE posts "
+                    "SET "
+                    "title = %(title)s, text = %(text)s, isAnnouncement = %(isAnnouncement)s "
+                    "WHERE postid = %(postid)s",
+                    {
+                        'title': f'[{new_tag_raw}] {new_title}',
+                        'text': body['text'],
+                        'isAnnouncement': body['isAnnouncement'],
+                        'postid': prev_announcement_post['postid'],
+                    }
+                )
+
+                # 2) DELETE post in boardTag[prev_tag_raw]
+                # NOTE: mysql does not throw an exception when a non-existent
+                #       row is deleted. To handle this case, we can either explicitly
+                #       throw an exception when this happens. However, at the point
+                #       this api is written, I think not handling this case at all
+                #       makes more sense.
+
+                cursor.execute(
+                    "DELETE FROM posts WHERE "
+                    "title = %(general_title)s "
+                    "AND type = %(general_type)s "
+                    "AND isAnnouncement = %(isAnnouncement)s",
+                    {
+                        'general_title': general_title,
+                        'general_type': boardTag[prev_tag_raw],
+                        'isAnnouncement': True
+                    }
+                )
+                server.model.commit_close(cursor)
+                return flask.jsonify(
+                    {
+                        'message':'post in announcement updated, post deleted from general board'
+                    }
+                ), 200
+            
+            # Case 2-2: new_tag_raw is not custom
+            # 1) UPDATE post in announcement
+            # 2) UPDATE post in boardTag[prev_tag_raw]
+            else:
+                cursor.execute(
+                    "UPDATE posts "
+                    "SET "
+                    "title = %(title)s, text = %(text)s, isAnnouncement = %(isAnnouncement)s "
+                    "WHERE postid = %(postid)s",
+                    {
+                        'title': f'[{new_tag_raw}] {new_title}',
+                        'text': body['text'],
+                        'isAnnouncement': body['isAnnouncement'],
+                        'postid': prev_announcement_post['postid'],
+                    }
+                )
+
+                # 2) UPDATE post in boardTag[prev_tag_raw]
+                cursor.execute(
+                    "UPDATE posts "
+                    "SET "
+                    "type = %(type)s, title = %(title)s, text = %(text)s, isAnnouncement = %(isAnnouncement)s "
+                    "WHERE title = %(general_title)s"
+                    "AND type = %(general_type)s"
+                    "AND isAnnouncement = %(general_isAnnouncement)s",
+                    {
+                        'type': boardTag[new_tag_raw],
+                        'title': f'{new_title}',
+                        'text': body['text'],
+                        'isAnnouncement': True,
+                        'general_title': general_title,
+                        'general_type': boardTag[prev_tag_raw],
+                        'general_isAnnouncement': True,
+                    }
+                )
+                server.model.commit_close(cursor)
+                return flask.jsonify(
+                    {
+                        'message':'post in announcement updated, post in general board updated'
+                    }
+                ), 200
+
+    # post to be updated is from general board
+    else:
+        cursor.execute(
+            "UPDATE posts "
+            "SET title = %(title)s, text = %(text)s, isAnnouncement = %(isAnnouncement)s "
+            "WHERE postid = %(postid)s ", 
+            {
+                'title': body['title'],
+                'text': body['text'],
+                'isAnnouncement': body['isAnnouncement'],
+                'postid': postid
+            }
+        )
+        server.model.commit_close(cursor)
+        return flask.jsonify({'message': 'post in general board updated successfully'}), 200
 
 # @desc    Delete post
 # @route   DELETE /api/v1/posts/{postid}
