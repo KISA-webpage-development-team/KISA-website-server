@@ -70,8 +70,8 @@ def get_user(email):
 # @desc    Update user info
 # @route   PUT /api/v1/users/<string:email>/
 # @argv    string:email
-# TEST:  curl -X PUT -H "Content-Type: application/json" -d '{"fullname": "지윤성"}' http://localhost:8000/api/v1/users/wookwan@umich.edu/
-@server.application.route("/api/v1/users/<string:email>/", methods=['PUT'])
+# TEST:  curl -X PATCH -H "Content-Type: application/json" -d '{"fullname": "지윤성"}' http://localhost:8000/api/v1/users/wookwan@umich.edu/
+@server.application.route("/api/v1/users/<string:email>/", methods=['PATCH'])
 def put_user(email):
     # Assuming the incoming data is in JSON format
     body = flask.request.get_json()
@@ -79,28 +79,16 @@ def put_user(email):
     # If the body is empty, do nothing
     if not body:
         return flask.jsonify({'message': 'Bad request, empty body'}), 400
-    
-    # Iterate through body dict to compose SQL query string
-    execution_sequence = []
-    execution_dict = {}
-    for field in body:
-        if body[field]:
-            execution_sequence.append(
-                f"{field} = %({field})s"
-            )
-            execution_dict[field] = body[field]
 
-    execution_dict['email'] = email
+    body['email'] = email
 
     cursor = server.model.cursor()
-
     cursor.execute(
         "UPDATE users SET " +
-        ', '.join(execution_sequence) +
+        ', '.join(map(lambda x: f'{x} = %({x})s', body.keys())) +
         " WHERE email = %(email)s",
-        execution_dict
+        body
     )
-
     server.model.commit_close(cursor)
 
     return flask.jsonify({'message': 'User updated successfully'}), 200
