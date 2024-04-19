@@ -2,9 +2,20 @@
 import server
 import MySQLdb.cursors
 
-def cursor():
-    return server.db.connection.cursor(MySQLdb.cursors.DictCursor)
 
-def commit_close(cursor):
-    server.db.connection.commit()
-    cursor.close()
+class Cursor:
+    def __init__(self):
+        self.cursor = server.db.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    def execute(self, sql, argsdict):
+        self.cursor.execute(sql, argsdict)
+
+    def fetchall(self):
+        return self.cursor.fetchall()
+    
+    def fetchone(self):
+        return self.cursor.fetchone()
+    
+    def __del__(self):
+        server.db.connection.commit()
+        self.cursor.close()

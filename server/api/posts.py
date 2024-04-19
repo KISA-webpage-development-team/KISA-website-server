@@ -2,6 +2,7 @@ import flask
 import server
 from .helpers import token_required
 from .helpers import boardTag
+from .helpers import count_comments
 
 # POSTS API ------------------------------------------------------------
 # /api/v1/posts
@@ -13,7 +14,7 @@ from .helpers import boardTag
 @server.application.route("/api/v1/posts/<int:postid>/",
                   methods=['GET'])
 def get_post(postid):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     # Fetch the post based on postid
     cursor.execute(
@@ -29,19 +30,11 @@ def get_post(postid):
     # return 404 NOT FOUND if no posts are in board type
     if not post:
         return flask.jsonify({'error': 'No Post Found'}), 404
+    
+    count_comments(cursor, post)
 
     # render context
-    context = {
-        'postid': postid,
-        'type': post['type'],
-        'title': post['title'],
-        'fullname': post['fullname'],
-        'email': post['email'],
-        'text': post['text'],
-        'readCount': post['readCount'],
-        'isAnnouncement': post['isAnnouncement'],
-        'created' : post['created']
-    }
+    context = post
     return flask.jsonify(**context)
     
 # @desc    Create a New Post with Board_type
@@ -67,7 +60,7 @@ def add_post():
         # fetch tag and see if the tag is custom or not
         # boardtype is announcement + tag is empty = custom tagged announcement post
         if not body['tag']:
-            cursor = server.model.cursor()
+            cursor = server.model.Cursor()
 
             # remove 'tag' key from body
             del body['tag']
@@ -80,7 +73,6 @@ def add_post():
                 fields_format + ") ",
                 body
             )
-            server.model.commit_close(cursor)
 
             return flask.jsonify({'message': 'post created successfully'}), 201
 
@@ -88,7 +80,7 @@ def add_post():
         # tagged announcement post
         # 2 different posts are generated
         else:
-            cursor = server.model.cursor()
+            cursor = server.model.Cursor()
 
             # save tag
             orig_type = body['type']
@@ -115,13 +107,12 @@ def add_post():
                 fields_format + ") ",
                 body
             )
-            server.model.commit_close(cursor)
 
             return flask.jsonify({'message': f'{orig_type} and {tag} posts created successfully'}), 201
         
     # Incoming post is from general boards
     else:
-        cursor = server.model.cursor()
+        cursor = server.model.Cursor()
         
         # tag field from body is unncessary, delete
         del body['tag']
@@ -134,7 +125,6 @@ def add_post():
             fields_format + ") ",
             body
         )
-        server.model.commit_close(cursor)
 
         return flask.jsonify({'message': 'post created successfully'}), 201
 
@@ -146,7 +136,7 @@ def update_post(postid):
     body = flask.request.get_json()
 
     # Fetch previous post by postid
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
     cursor.execute(
         "SELECT * FROM posts WHERE postid = %(postid)s",
         {
@@ -183,7 +173,7 @@ def update_post(postid):
                         'postid': prev_announcement_post['postid']
                     }
                 )
-                server.model.commit_close(cursor)
+                
                 return flask.jsonify({'message': 'post in announcement board updated'}), 200
 
             # Case 1-2: new_tag_raw is not custom
@@ -227,8 +217,7 @@ def update_post(postid):
                     fields_format + ") ",
                     new_post_data
                 )
-
-                server.model.commit_close(cursor)
+                
                 return flask.jsonify(
                     {
                         'message':'post in announcement updated, post inserted into general board'
@@ -277,7 +266,7 @@ def update_post(postid):
                         'isAnnouncement': True
                     }
                 )
-                server.model.commit_close(cursor)
+                
                 return flask.jsonify(
                     {
                         'message':'post in announcement updated, post deleted from general board'
@@ -319,7 +308,7 @@ def update_post(postid):
                         'general_isAnnouncement': True,
                     }
                 )
-                server.model.commit_close(cursor)
+                
                 return flask.jsonify(
                     {
                         'message':'post in announcement updated, post in general board updated'
@@ -339,7 +328,7 @@ def update_post(postid):
                 'postid': postid
             }
         )
-        server.model.commit_close(cursor)
+        
         return flask.jsonify({'message': 'post in general board updated successfully'}), 200
 
 # @desc    Delete post
@@ -347,7 +336,7 @@ def update_post(postid):
 # @params  {path} int:postid
 @server.application.route("/api/v1/posts/<int:postid>/", methods=['DELETE'])
 def delete_post(postid):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
     # Check if the post with the specified postid exists
 
     cursor.execute(
@@ -366,7 +355,6 @@ def delete_post(postid):
                 'postid': postid
             }
         )
-        server.model.commit_close(cursor)
 
         # Return a success message
         return flask.jsonify({'message': f'Post {postid} deleted successfully'}), 204
@@ -379,7 +367,7 @@ def delete_post(postid):
 # @params  {path} int:postid
 @server.application.route("/api/v1/posts/readCount/<int:postid>/", methods=['PATCH'])
 def increment_readcount(postid):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
     # Check if the post with the specified postid exists
     cursor.execute(
         'SELECT * FROM posts WHERE postid = %(postid)s',
@@ -403,7 +391,6 @@ def increment_readcount(postid):
                 'postid': postid
             }
         )
-        server.model.commit_close(cursor)
 
         # Return a success message
         return flask.jsonify({'message': f'Post {postid} readCount is now {cur_readCount + 1}'}), 200

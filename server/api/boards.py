@@ -1,21 +1,9 @@
 import flask
 import server
+from .helpers import count_comments
 
 # BOARDS API ------------------------------------------------------------
 # /api/v1/boards
-
-def count_comments(cursor, posts):
-    for post in posts:
-        cursor.execute(
-            "SELECT COUNT(*) "
-            "FROM comments "
-            "WHERE comments.postid = %(comments_postid)s",
-            {
-                'comments_postid': post["postid"]
-            }
-        )
-        comments_count = cursor.fetchone()["COUNT(*)"]
-        post["commentsCount"] = comments_count
 
 # @desc    Get all posts of specified board by page number and size
 # @route   GET /api/v1/boards/<string:board_type>/posts
@@ -25,7 +13,7 @@ def count_comments(cursor, posts):
 @server.application.route("/api/v1/boards/<string:board_type>/posts/",
                   methods=['GET'])
 def get_posts_by_board_type(board_type):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     # Initialize flask request arguments
     size = flask.request.args.get(
@@ -72,7 +60,8 @@ def get_posts_by_board_type(board_type):
         return flask.jsonify({'error': 'No posts in requested page'}), 404
 
     # Count the number of comments of each post and add to response result
-    count_comments(cursor, posts_in_page)
+    for post in posts_in_page:
+        count_comments(cursor, post)
 
     # render context
     context_url = flask.request.path
@@ -91,7 +80,7 @@ def get_posts_by_board_type(board_type):
 @server.application.route("/api/v1/boards/<string:board_type>/announcements/",
                   methods=['GET'])
 def get_announcements_by_board_type(board_type):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     cursor.execute(
         "SELECT postid, type, title, fullname, readCount, isAnnouncement, created "
@@ -109,12 +98,38 @@ def get_announcements_by_board_type(board_type):
         return flask.jsonify({'response': f'No announcements for board type {board_type}'}), 204
 
     # Count the number of comments of each post and add to response result
-    count_comments(cursor, announcements)
+    for announcement in announcements:
+        count_comments(cursor, announcement)
     
     # render context
     context = {
         "results": announcements,
         "url": flask.request.path
+    }
+    return flask.jsonify(**context), 200
+
+# @desc    Get total count of non-announcement posts in board_type
+# @route   GET /api/v1/boards/<string:board_type>/count
+# @params  {path} string:board_type
+# TEST: "http://localhost:8000/api/v1/boards/community/count"
+@server.application.route("/api/v1/boards/<string:board_type>/count/",
+                  methods=['GET'])
+def get_post_count(board_type):
+    cursor = server.model.Cursor()
+
+    cursor.execute(
+        "SELECT COUNT(*) "
+        "FROM posts "
+        "WHERE type = %(type)s",
+        {
+            'type': board_type,
+        }
+    )
+    post_count = cursor.fetchone()['COUNT(*)']
+    
+    # render context
+    context = {
+        'postCount': post_count
     }
     return flask.jsonify(**context), 200
     

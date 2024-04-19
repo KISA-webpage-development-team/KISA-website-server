@@ -1,38 +1,6 @@
 import flask
 import server
-
-def is_admin(authorization_header):
-    admin_token = "your_admin_token"
-    return authorization_header == f"Bearer {admin_token}"
-
-def fetch_user_posts(email):
-    cursor = server.model.cursor()
-
-    # Fetch posts associated with the given email
-    cursor.execute(
-        'SELECT * FROM posts WHERE email = %(email)s',
-        {
-            'email': email
-        }
-    )
-    user_posts = cursor.fetchall()
-
-    return user_posts
-
-def fetch_user_comments(email):
-    cursor = server.model.cursor()
-
-    # Fetch comments associated with the given email
-    cursor.execute(
-        'SELECT * FROM comments WHERE email = %(email)s',
-        {
-            'email': email
-        }
-    )
-    user_comments = cursor.fetchall()
-
-
-    return user_comments
+from .helpers import fetch_user_posts, fetch_user_comments
 
 # Users API ------------------------------------------------------------
 # /api/v1/users/{email}
@@ -44,7 +12,7 @@ def fetch_user_comments(email):
 @server.application.route("/api/v1/users/<string:email>/",
                   methods=['GET'])
 def get_user(email):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     # Fetch the user based on email
     cursor.execute(
@@ -82,14 +50,13 @@ def put_user(email):
 
     body['email'] = email
 
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
     cursor.execute(
         "UPDATE users SET " +
         ', '.join(map(lambda x: f'{x} = %({x})s', body.keys())) +
         " WHERE email = %(email)s",
         body
     )
-    server.model.commit_close(cursor)
 
     return flask.jsonify({'message': 'User updated successfully'}), 200
 
@@ -99,7 +66,7 @@ def put_user(email):
 # TEST: curl -X DELETE http://localhost:8000/api/v1/users/wookwan@umich.edu/
 @server.application.route("/api/v1/users/<string:email>/", methods=['DELETE'])
 def delete_user(email):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     # Check if the user exists
     cursor.execute(
@@ -118,7 +85,6 @@ def delete_user(email):
                 'email': email
             }
         )
-        server.model.commit_close(cursor)
 
         # Return a success message
         return flask.jsonify({'message': f'user with email {email} deleted successfully'}), 200
@@ -132,7 +98,7 @@ def delete_user(email):
 @server.application.route("/api/v1/users/<string:email>/posts/",
                   methods=['GET'])
 def get_user_posts(email):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     # Fetch the user based on email
     cursor.execute(
@@ -165,7 +131,7 @@ def get_user_posts(email):
 @server.application.route("/api/v1/users/<string:email>/comments/",
                   methods=['GET'])
 def get_user_comments(email):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     # Fetch the user based on email
     cursor.execute(

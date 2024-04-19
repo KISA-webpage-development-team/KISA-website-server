@@ -1,5 +1,6 @@
 import flask
 import server
+from .helpers import delete_child_comments, get_child_comments
 
 
 # COMMENTS API ------------------------------------------------------------
@@ -12,7 +13,7 @@ import server
 # '{"fullname": "ajys", "postid":"0", "text":"I love KISA"}' http://localhost:8000/api/post/comments
 @server.application.route("/api/v1/comments/<int:postid>/", methods=['POST'])
 def post_comment(postid):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
     # Assuming the incoming data is in JSON format
     data = flask.request.get_json()
 
@@ -39,7 +40,6 @@ def post_comment(postid):
             'parentCommentid': parentCommentid
         }
     )
-    server.model.commit_close(cursor)
 
     # Return a JSON response indicating success
     return flask.jsonify({'message': 'Comment posted successfully'}), 201
@@ -49,7 +49,7 @@ def post_comment(postid):
 # @argv    {"commentid", "text"} ???  [NEED TO REVIEW IT AGAIN]
 @server.application.route("/api/v1/comments/<int:commentid>/", methods=['PUT'])
 def update_comment(commentid):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
     # Assuming the new comment data is sent in the request body as JSON
     data = flask.request.get_json()
 
@@ -67,7 +67,6 @@ def update_comment(commentid):
             'commentid': commentid
         }
     )
-    server.model.commit_close(cursor)
 
     # Update the comment with the new data (replace this with your actual update logic)
     updated_comment_data = {
@@ -78,35 +77,13 @@ def update_comment(commentid):
     # Return a JSON response indicating success
     return flask.jsonify(updated_comment_data)
 
-def delete_child_comments(comment, cursor):
-    # search for any child comments of this comment
-    cursor.execute(
-        "SELECT * FROM comments WHERE parentCommentid = %(parentCommentid)s",
-        {
-            'parentCommentid': comment['commentid']
-        }
-    )
-    childComments = cursor.fetchall()
-
-    # recursively delete child comments
-    for childComment in childComments:
-        delete_child_comments(childComment, cursor)
-
-    # delete comment itself
-    cursor.execute(
-        'DELETE FROM comments WHERE commentid = %(commentid)s',
-        {
-            'commentid': comment['commentid']
-        }
-    )
-
 # @desc    Delete comment
 # @route   DELETE /api/v1/comments/{commentid}
 # @argv    int:commentid
 # TEST: curl -X DELETE http://localhost:8000/api/post/comments/1/
 @server.application.route("/api/v1/comments/<int:commentid>/", methods=['DELETE'])
 def delete_comment(commentid):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
     # Check if the comment with the specified commentid exists
     cursor.execute(
         'SELECT * FROM comments WHERE commentid = %(commentid)s',
@@ -122,45 +99,9 @@ def delete_comment(commentid):
     else:
         # Delete the comment from the database
         delete_child_comments(existing_comment, cursor)
-        server.model.commit_close(cursor)
 
         # Return a success message
         return flask.jsonify({'message': f'Comment with ID {commentid} deleted successfully'}), 204
-    
-
-def get_child_comments(comment, cursor):
-    # Set fullname according to email of the commenter
-    cursor.execute(
-        "SELECT fullname FROM users WHERE email = %(email)s",
-        {
-            'email': comment['email']
-        }
-    )
-    fullname = cursor.fetchone()
-    comment['fullname'] = fullname['fullname']
-
-    # check for base case (if child comments does not exist)
-    cursor.execute(
-        "SELECT * FROM comments WHERE postid = %(postid)s "
-        "AND isCommentOfComment = %(isCommentOfComment)s "
-        "AND parentCommentid = %(parentCommentid)s",
-        {
-            'postid': comment['postid'],
-            'isCommentOfComment': True,
-            'parentCommentid': comment['commentid']
-        }
-    )
-    child_comments = cursor.fetchall()
-
-    # base case
-    if not child_comments:
-        comment['childComments'] = []
-    
-    # recursive case
-    else:
-        comment['childComments'] = [dict(child_comment) for child_comment in child_comments]
-        for child_comment in comment['childComments']:
-            get_child_comments(child_comment, cursor)
     
 # @desc   Get all comments of specified post
 # @route  GET /api/v1/comments/{postid}
@@ -168,7 +109,7 @@ def get_child_comments(comment, cursor):
 # TEST: http "http://localhost:8000/api/v1/comments/1/"
 @server.application.route("/api/v1/comments/<int:postid>/", methods=['GET'])
 def get_comments(postid):
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     # Fetch comments of depth 1 as list (not comment of comment)
     cursor.execute(

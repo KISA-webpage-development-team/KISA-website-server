@@ -9,6 +9,7 @@ from server.api.comment import delete_comment
 from server.api.comment import get_comments
 from server.api.boards import get_posts_by_board_type
 from server.api.boards import get_announcements_by_board_type
+from server.api.boards import get_post_count
 from server.api.posts import get_post
 from server.api.posts import add_post
 from server.api.posts import update_post
@@ -19,4 +20,3 @@ from server.api.users import put_user
 from server.api.users import delete_user
 from server.api.users import get_user_posts
 from server.api.users import get_user_comments
-import server.api.helpers

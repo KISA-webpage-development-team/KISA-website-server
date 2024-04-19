@@ -13,7 +13,7 @@ import server
 @server.application.route('/api/v1/auth/userExists/', methods=['GET'])
 def check_existing_user():
     request_email = flask.request.args["email"]
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     # Fetch the comment based on commentid
     cursor.execute(
@@ -58,7 +58,7 @@ def add_user():
     ):
        return flask.jsonify({'message': 'Bad request, required fields missing'}), 400
 
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     cursor.execute(
         "INSERT INTO users (" +
@@ -67,8 +67,6 @@ def add_user():
         ', '.join(map(lambda x: '%(' + x + ')s', body.keys())) + ")",
         body
     )
-
-    server.model.commit_close(cursor)
 
     return flask.jsonify({
        "message": f"user {body['email']} created"
@@ -81,7 +79,7 @@ def add_user():
 def is_admin():
     request_email = flask.request.args["email"]
 
-    cursor = server.model.cursor()
+    cursor = server.model.Cursor()
 
     # Fetch the comment based on commentid
     cursor.execute(
