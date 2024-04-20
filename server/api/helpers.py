@@ -4,7 +4,7 @@ import server
 
 boardTag = {
     '자유게시판': 'community',
-    '학업 정보': 'academics',
+    '학업/취업': 'academic-job',
     '사고팔기': 'buyandsell',
     '하우징/룸메이트': 'housing'
 }

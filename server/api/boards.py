@@ -46,7 +46,6 @@ def get_posts_by_board_type(board_type):
     )
     posts = cursor.fetchall()
 
-
     # Return 204 NO CONTENT if no posts are in board type
     if not posts:
         return flask.jsonify({'response': 'No posts in board'}), 204
