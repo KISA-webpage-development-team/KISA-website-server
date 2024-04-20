@@ -120,9 +120,10 @@ def get_post_count(board_type):
     cursor.execute(
         "SELECT COUNT(*) "
         "FROM posts "
-        "WHERE type = %(type)s",
+        "WHERE type = %(type)s AND isAnnouncement = %(isAnnouncement)s",
         {
             'type': board_type,
+            'isAnnouncement': False
         }
     )
     post_count = cursor.fetchone()['COUNT(*)']
