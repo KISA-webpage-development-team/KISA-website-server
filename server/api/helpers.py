@@ -1,6 +1,7 @@
 import flask
 import jwt
 import server
+from functools import wraps
 
 boardTag = {
     '자유게시판': 'community',
@@ -10,6 +11,7 @@ boardTag = {
 }
 
 def token_required(func):
+    @wraps(func)
     def token_test(*args, **kwargs):
         token = flask.request.headers.get('Authorization')
         if not token:
@@ -18,10 +20,10 @@ def token_required(func):
             secret_key = file.read()
             try:
                 token = token.split(' ')[1]
-                decode_message = jwt.decode(token, secret_key, algorithms=['HS256'])
-                func(*args, **kwargs)
+                print(jwt.decode(token, secret_key, algorithms='HS256'))
+                return func(*args, **kwargs)
             except:
-                return flask.jsonify({'message': 'Decode failed'}), 401
+                return flask.jsonify({'error': 'Decode failed'}), 401
     return token_test
 
 def count_comments(cursor, post):

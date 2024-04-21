@@ -1,8 +1,6 @@
 import flask
 import server
-from .helpers import token_required
-from .helpers import boardTag
-from .helpers import count_comments
+from .helpers import token_required, boardTag, count_comments
 
 # POSTS API ------------------------------------------------------------
 # /api/v1/posts
@@ -40,8 +38,8 @@ def get_post(postid):
 # @desc    Create a New Post with Board_type
 # @route   POST /api/v1/posts
 # @params  {body} {"type", "title", "fullname", "email", "text", "isAnnouncement"}
-# @token_required
 @server.application.route("/api/v1/posts/", methods=['POST'])
+@token_required
 def add_post():
     # Fetch body from request
     body = flask.request.get_json()
@@ -131,6 +129,7 @@ def add_post():
 # @desc    Update post with new text
 # @route   PUT /api/v1/posts/<int:postid>
 @server.application.route("/api/v1/posts/<int:postid>/", methods=['PATCH'])
+@token_required
 def update_post(postid):
     # Fetch body from request
     body = flask.request.get_json()
@@ -335,6 +334,7 @@ def update_post(postid):
 # @route   DELETE /api/v1/posts/{postid}
 # @params  {path} int:postid
 @server.application.route("/api/v1/posts/<int:postid>/", methods=['DELETE'])
+@token_required
 def delete_post(postid):
     cursor = server.model.Cursor()
     # Check if the post with the specified postid exists
@@ -366,6 +366,7 @@ def delete_post(postid):
 # @route   PATCH /api/v1/posts/readCount/<int:postid>/
 # @params  {path} int:postid
 @server.application.route("/api/v1/posts/readCount/<int:postid>/", methods=['PATCH'])
+@token_required
 def increment_readcount(postid):
     cursor = server.model.Cursor()
     # Check if the post with the specified postid exists

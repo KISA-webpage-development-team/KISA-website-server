@@ -1,6 +1,6 @@
 import flask
 import server
-from .helpers import delete_child_comments, get_child_comments
+from .helpers import delete_child_comments, get_child_comments, token_required
 
 
 # COMMENTS API ------------------------------------------------------------
@@ -12,6 +12,7 @@ from .helpers import delete_child_comments, get_child_comments
 # TEST:  curl -X POST -H "Content-Type: application/json" -d 
 # '{"fullname": "ajys", "postid":"0", "text":"I love KISA"}' http://localhost:8000/api/post/comments
 @server.application.route("/api/v1/comments/<int:postid>/", methods=['POST'])
+@token_required
 def post_comment(postid):
     cursor = server.model.Cursor()
     # Assuming the incoming data is in JSON format
@@ -48,6 +49,7 @@ def post_comment(postid):
 # @route   PUT /api/v1/comments/{commentid}
 # @argv    {"commentid", "text"} ???  [NEED TO REVIEW IT AGAIN]
 @server.application.route("/api/v1/comments/<int:commentid>/", methods=['PUT'])
+@token_required
 def update_comment(commentid):
     cursor = server.model.Cursor()
     # Assuming the new comment data is sent in the request body as JSON
@@ -82,6 +84,7 @@ def update_comment(commentid):
 # @argv    int:commentid
 # TEST: curl -X DELETE http://localhost:8000/api/post/comments/1/
 @server.application.route("/api/v1/comments/<int:commentid>/", methods=['DELETE'])
+@token_required
 def delete_comment(commentid):
     cursor = server.model.Cursor()
     # Check if the comment with the specified commentid exists

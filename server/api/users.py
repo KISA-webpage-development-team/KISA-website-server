@@ -1,6 +1,6 @@
 import flask
 import server
-from .helpers import fetch_user_posts, fetch_user_comments
+from .helpers import fetch_user_posts, fetch_user_comments, token_required
 
 # Users API ------------------------------------------------------------
 # /api/v1/users/{email}
@@ -11,6 +11,7 @@ from .helpers import fetch_user_posts, fetch_user_comments
 # TEST: http "http://localhost:8000/api/v1/users/wookwan@umich.edu/"
 @server.application.route("/api/v1/users/<string:email>/",
                   methods=['GET'])
+@token_required
 def get_user(email):
     cursor = server.model.Cursor()
 
@@ -40,6 +41,7 @@ def get_user(email):
 # @argv    string:email
 # TEST:  curl -X PATCH -H "Content-Type: application/json" -d '{"fullname": "지윤성"}' http://localhost:8000/api/v1/users/wookwan@umich.edu/
 @server.application.route("/api/v1/users/<string:email>/", methods=['PATCH'])
+@token_required
 def put_user(email):
     # Assuming the incoming data is in JSON format
     body = flask.request.get_json()
@@ -65,6 +67,7 @@ def put_user(email):
 # @argv    string:email
 # TEST: curl -X DELETE http://localhost:8000/api/v1/users/wookwan@umich.edu/
 @server.application.route("/api/v1/users/<string:email>/", methods=['DELETE'])
+@token_required
 def delete_user(email):
     cursor = server.model.Cursor()
 
@@ -97,6 +100,7 @@ def delete_user(email):
 # TEST: http "http://localhost:8000/api/v1/users/wookwan@umich.edu/posts
 @server.application.route("/api/v1/users/<string:email>/posts/",
                   methods=['GET'])
+@token_required
 def get_user_posts(email):
     cursor = server.model.Cursor()
 
@@ -130,6 +134,7 @@ def get_user_posts(email):
 # TEST: http "http://localhost:8000/api/v1/users/wookwan@umich.edu/comments
 @server.application.route("/api/v1/users/<string:email>/comments/",
                   methods=['GET'])
+@token_required
 def get_user_comments(email):
     cursor = server.model.Cursor()
 

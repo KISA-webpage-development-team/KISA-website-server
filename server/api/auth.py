@@ -1,8 +1,7 @@
 # entry point of flask backend
 import flask
-import jwt
-from functools import wraps
 import server
+from .helpers import token_required
 
 # AUTH APIS ----------------------------------------------------------f
 # /api/v1/auth
@@ -10,9 +9,8 @@ import server
 # @desc    Check whether user already exists in database
 # @route   GET /api/v1/auth/userExists?email={email}
 # @params  {query} string:email
-@server.application.route('/api/v1/auth/userExists/', methods=['GET'])
-def check_existing_user():
-    request_email = flask.request.args["email"]
+@server.application.route('/api/v1/auth/userExists/<string:email>', methods=['GET'])
+def check_existing_user(email):
     cursor = server.model.Cursor()
 
     # Fetch the comment based on commentid
@@ -20,7 +18,7 @@ def check_existing_user():
         "SELECT * FROM users "
         "WHERE email = %(email)s",
         {
-            'email': request_email
+            'email': email
         }
     )
     user = cursor.fetchone()
@@ -75,10 +73,9 @@ def add_user():
 # @desc    Check whether user is admin using email
 # @route   GET /api/v1/auth/isAdmin?email={email}
 # @params  {query} string:email
-@server.application.route('/api/v1/auth/isAdmin/', methods=['GET'])
+@server.application.route('/api/v1/auth/isAdmin/<string:email>', methods=['GET'])
+@token_required
 def is_admin():
-    request_email = flask.request.args["email"]
-
     cursor = server.model.Cursor()
 
     # Fetch the comment based on commentid
@@ -86,7 +83,7 @@ def is_admin():
         "SELECT * FROM admins "
         "WHERE email = %(email)s",
         {
-            'email': request_email
+            'email': email
         }
     )
     email = cursor.fetchone()

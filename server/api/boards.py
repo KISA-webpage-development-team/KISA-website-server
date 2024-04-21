@@ -77,7 +77,7 @@ def get_posts_by_board_type(board_type):
 # @params  {path} string:board_type
 # TEST: "http://localhost:8000/api/v1/boards/community/announcements"
 @server.application.route("/api/v1/boards/<string:board_type>/announcements/",
-                  methods=['GET'])
+                          methods=['GET'])
 def get_announcements_by_board_type(board_type):
     cursor = server.model.Cursor()
 
