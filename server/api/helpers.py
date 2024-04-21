@@ -14,9 +14,7 @@ def token_required(func):
     @wraps(func)
     def token_test(*args, **kwargs):
         token = flask.request.headers.get('Authorization')
-        print(token)
         if not token:
-            print('AAA')
             return flask.jsonify({'message': 'Missing token'}), 401
         with open('secret_key.txt', 'r') as file:
             secret_key = file.read()
