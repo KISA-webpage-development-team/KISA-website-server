@@ -75,7 +75,7 @@ def add_user():
 # @params  {query} string:email
 @server.application.route('/api/v1/auth/isAdmin/<string:email>', methods=['GET'])
 @token_required
-def is_admin():
+def is_admin(email):
     cursor = server.model.Cursor()
 
     # Fetch the comment based on commentid
