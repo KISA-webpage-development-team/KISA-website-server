@@ -2,6 +2,7 @@
 import flask
 import server
 from .helpers import token_required
+import boto3
 
 # AUTH APIS ----------------------------------------------------------f
 # /api/v1/auth

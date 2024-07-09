@@ -1,6 +1,7 @@
 import flask
 import server
 from .helpers import token_required, boardTag, count_comments
+from .image_handler import handle_imgs, delete_imgs
 
 # POSTS API ------------------------------------------------------------
 # /api/v1/posts
@@ -34,42 +35,47 @@ def get_post(postid):
     # render context
     context = post
     return flask.jsonify(**context)
-    
-# @desc    Create a New Post with Board_type
-# @route   POST /api/v1/posts
-# @params  {body} {"type", "title", "fullname", "email", "text", "isAnnouncement"}
+
 @server.application.route("/api/v1/posts/", methods=['POST'])
 @token_required
 def add_post():
     # Fetch body from request
     body = flask.request.get_json()
 
+    # Fetch next postid by inserting a dummy post
+    cursor = server.model.Cursor()
+    cursor.execute(
+        "INSERT INTO posts (email) VALUES (%(email)s)",
+        {"email": body["email"]}
+    )
+    next_postid = cursor.lastrowid()
+
+    # Handle image upload
+    handle_imgs(body, next_postid)
+
     # Incoming post is from announcement board
     if body['type'] == 'announcement':
         # Error Handling
-        # announcement posts cannot be an announcement
         if body['isAnnouncement']:
             return flask.jsonify({'error': 'Bad request: Announcement post cannot be an announcement itself'}), 400
-        
-        # announcement post missing tag field
         if 'tag' not in body:
             return flask.jsonify({'error': 'Bad request: Announcement post missing tag field'}), 400
         
-        # fetch tag and see if the tag is custom or not
-        # boardtype is announcement + tag is empty = custom tagged announcement post
+        # Tag is empty -> custom tagged announcement post
         if not body['tag']:
-            cursor = server.model.Cursor()
-
             # remove 'tag' key from body
             del body['tag']
-            
-            fields = ", ".join(body.keys())
-            fields_format = ", ".join(map(lambda x: "%(" + x + ")s", body.keys()))
+
+            # create "parent" post in announcement board
+            fields = ", ".join(map(lambda x: f"{x} = %({x})s", body.keys()))
             cursor.execute(
-                "INSERT INTO posts (" +
-                fields + ") VALUES (" +
-                fields_format + ") ",
-                body
+                "UPDATE posts "
+                f"SET {fields} "
+                "WHERE postid = %(postid)s",
+                {
+                    **body,
+                    'postid': next_postid
+                }
             )
 
             return flask.jsonify({'message': 'post created successfully'}), 201
@@ -85,20 +91,25 @@ def add_post():
             tag = body['tag']
             del body['tag']
 
-            fields = ", ".join(body.keys())
-            fields_format = ", ".join(map(lambda x: "%(" + x + ")s", body.keys()))
+            # create "parent" post in announcement board
+            fields = ", ".join(map(lambda x: f"{x} = %({x})s", body.keys()))
             cursor.execute(
-                "INSERT INTO posts (" +
-                fields + ") VALUES (" +
-                fields_format + ") ",
-                body
+                "UPDATE posts "
+                f"SET {fields} "
+                "WHERE postid = %(postid)s",
+                {
+                    **body,
+                    'postid': next_postid
+                }
             )
 
-            # change type to saved tag and set as announcement
+            # create "child" post in general board
             body['type'] = tag
             body['isAnnouncement'] = True
-            body['title'] = body['title'].split(']')[1].strip()
+            body['title'] = "]".join(body['title'].split(']')[1::]).strip()
             
+            fields = ", ".join(body.keys())
+            fields_format = ", ".join(map(lambda x: "%(" + x + ")s", body.keys()))
             cursor.execute(
                 "INSERT INTO posts (" +
                 fields + ") VALUES (" +
@@ -115,13 +126,16 @@ def add_post():
         # tag field from body is unncessary, delete
         del body['tag']
         
-        fields = ", ".join(body.keys())
-        fields_format = ", ".join(map(lambda x: "%(" + x + ")s", body.keys()))
+        # create "parent" post in announcement board
+        fields = ", ".join(map(lambda x: f"{x} = %({x})s", body.keys()))
         cursor.execute(
-            "INSERT INTO posts (" +
-            fields + ") VALUES (" +
-            fields_format + ") ",
-            body
+            "UPDATE posts "
+            f"SET {fields} "
+            "WHERE postid = %(postid)s",
+            {
+                **body,
+                'postid': next_postid
+            }
         )
 
         return flask.jsonify({'message': 'post created successfully'}), 201
@@ -143,6 +157,9 @@ def update_post(postid):
         }
     )
     prev_post = cursor.fetchone()
+
+    # Handle image upload
+    handle_imgs(body, postid, prev_post['text'])
 
     # post to be updated is from announcement board
     if prev_post['type'] == 'announcement':
@@ -348,6 +365,9 @@ def delete_post(postid):
     existing_post = cursor.fetchone()
 
     if existing_post:
+        # Delete imgs
+        delete_imgs(existing_post['text'])
+
         # Delete the post from the database
         cursor.execute(
             'DELETE FROM posts WHERE postid = %(postid)s',
@@ -366,7 +386,6 @@ def delete_post(postid):
 # @route   PATCH /api/v1/posts/readCount/<int:postid>/
 # @params  {path} int:postid
 @server.application.route("/api/v1/posts/readCount/<int:postid>/", methods=['PATCH'])
-@token_required
 def increment_readcount(postid):
     cursor = server.model.Cursor()
     # Check if the post with the specified postid exists

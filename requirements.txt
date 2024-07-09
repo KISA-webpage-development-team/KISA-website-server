@@ -22,3 +22,4 @@ Werkzeug==3.0.1
 Flask-MySQLdb==2.0.0
 PyYAML==5.3.1
 wheel
+boto3

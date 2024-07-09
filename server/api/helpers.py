@@ -39,10 +39,6 @@ def count_comments(cursor, post):
     comments_count = cursor.fetchone()["COUNT(*)"]
     post["commentsCount"] = comments_count
 
-# def is_admin(authorization_header):
-#     admin_token = "your_admin_token"
-#     return authorization_header == f"Bearer {admin_token}"
-
 def fetch_user_posts(email):
     cursor = server.model.Cursor()
 
@@ -53,7 +49,7 @@ def fetch_user_posts(email):
             'email': email
         }
     )
-    user_posts = cursor.fetchall()
+    user_posts = cursor.fetchall()[::-1]
 
     return user_posts
 
@@ -67,7 +63,7 @@ def fetch_user_comments(email):
             'email': email
         }
     )
-    user_comments = cursor.fetchall()
+    user_comments = cursor.fetchall()[::-1]
 
     return user_comments
 
