@@ -84,8 +84,6 @@ def add_post():
         # tagged announcement post
         # 2 different posts are generated
         else:
-            cursor = server.model.Cursor()
-
             # save tag
             orig_type = body['type']
             tag = body['tag']
@@ -121,8 +119,6 @@ def add_post():
         
     # Incoming post is from general boards
     else:
-        cursor = server.model.Cursor()
-        
         # tag field from body is unncessary, delete
         del body['tag']
         
