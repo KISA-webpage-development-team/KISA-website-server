@@ -60,7 +60,6 @@ def handle_imgs(body, postid, prev_text=""):
             except Exception as e:
                 print(f"Failed to delete image: {str(e)}")
             
-
     # Handle text of request body (from add, edit)
     for img_src in srcs[1::]:
         # If the image is already uploaded, do not upload again
