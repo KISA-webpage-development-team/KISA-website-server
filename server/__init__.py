@@ -3,6 +3,12 @@
 import flask
 from flask_cors import CORS
 from flask_mysqldb import MySQL
+import argparse
+
+# global variable for commandline argument tracking
+parser = argparse.ArgumentParser()
+parser.add_argument('-l', action='store_true')
+args = parser.parse_args()
 
 # index page texts
 header_text = '''
