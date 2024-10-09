@@ -4,8 +4,14 @@ from .helpers import delete_child_comments, get_child_comments, token_required
 
 
 # COMMENTS API ------------------------------------------------------------
-# /api/v2/comments
-@server.application.route("/api/v2/comments/<int:postid>/", methods=['POST'])
+# /api/v1/comments
+
+# @desc    Create new comment
+# @route   GET /api/v1/comments
+# @argv    {"fullname", "postid", "text"}
+# TEST:  curl -X POST -H "Content-Type: application/json" -d 
+# '{"fullname": "ajys", "postid":"0", "text":"I love KISA"}' http://localhost:8000/api/post/comments
+@server.application.route("/api/v1/comments/<int:postid>/", methods=['POST'])
 @token_required
 def post_comment(postid):
     cursor = server.model.Cursor()
@@ -18,7 +24,6 @@ def post_comment(postid):
     text = data.get('text')
     isCommentOfComment = data.get('isCommentOfComment')
     parentCommentid = data.get('parentCommentid')
-    anonymous = data.get('anonymous')
 
     # Perform validation on the input data
     if not email or not fullname or not text:
@@ -26,22 +31,24 @@ def post_comment(postid):
 
     # Perform the actual logic of posting a comment (insert into the database)
     cursor.execute(
-        "INSERT INTO comments (email, postid, text, isCommentOfComment, parentCommentid, anonymous) "
-        "VALUES (%(email)s, %(postid)s, %(text)s, %(isCommentOfComment)s, %(parentCommentid)s, %(anonymous)s) ", 
+        "INSERT INTO comments (email, postid, text, isCommentOfComment, parentCommentid) "
+        "VALUES (%(email)s, %(postid)s, %(text)s, %(isCommentOfComment)s, %(parentCommentid)s) ", 
         {
             'email': email,
             'postid': postid,
             'text': text,
             'isCommentOfComment': isCommentOfComment,
-            'parentCommentid': parentCommentid,
-            'anonymous': anonymous
+            'parentCommentid': parentCommentid
         }
     )
 
     # Return a JSON response indicating success
     return flask.jsonify({'message': 'Comment posted successfully'}), 201
 
-@server.application.route("/api/v2/comments/<int:commentid>/", methods=['PUT'])
+# @desc    Update comment with new text
+# @route   PUT /api/v1/comments/{commentid}
+# @argv    {"commentid", "text"} ???  [NEED TO REVIEW IT AGAIN]
+@server.application.route("/api/v1/comments/<int:commentid>/", methods=['PUT'])
 @token_required
 def update_comment(commentid):
     cursor = server.model.Cursor()
@@ -52,8 +59,7 @@ def update_comment(commentid):
     if not data or 'text' not in data:
         return flask.jsonify({'error': 'Missing required fields'}), 400
     
-    cursor.execute(
-        '''
+    cursor.execute('''
             UPDATE comments
             SET text = %(text)s
             WHERE commentid = %(commentid)s
@@ -73,7 +79,11 @@ def update_comment(commentid):
     # Return a JSON response indicating success
     return flask.jsonify(updated_comment_data)
 
-@server.application.route("/api/v2/comments/<int:commentid>/", methods=['DELETE'])
+# @desc    Delete comment
+# @route   DELETE /api/v1/comments/{commentid}
+# @argv    int:commentid
+# TEST: curl -X DELETE http://localhost:8000/api/post/comments/1/
+@server.application.route("/api/v1/comments/<int:commentid>/", methods=['DELETE'])
 @token_required
 def delete_comment(commentid):
     cursor = server.model.Cursor()
@@ -96,7 +106,11 @@ def delete_comment(commentid):
         # Return a success message
         return flask.jsonify({'message': f'Comment with ID {commentid} deleted successfully'}), 204
     
-@server.application.route("/api/v2/comments/<int:postid>/", methods=['GET'])
+# @desc   Get all comments of specified post
+# @route  GET /api/v1/comments/{postid}
+# @argv   int:postid
+# TEST: http "http://localhost:8000/api/v1/comments/1/"
+@server.application.route("/api/v1/comments/<int:postid>/", methods=['GET'])
 def get_comments(postid):
     cursor = server.model.Cursor()
 

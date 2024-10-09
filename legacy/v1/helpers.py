@@ -3,6 +3,13 @@ import jwt
 import server
 from functools import wraps
 
+boardTag = {
+    '자유게시판': 'community',
+    '학업/취업': 'academic-job',
+    '사고팔기': 'buyandsell',
+    '하우징/룸메이트': 'housing'
+}
+
 def token_required(func):
     @wraps(func)
     def token_test(*args, **kwargs):
@@ -41,21 +48,12 @@ def fetch_user_posts(email):
 
     # Fetch posts associated with the given email
     cursor.execute(
-        '''
-            SELECT postid, title, created, fullname, type, readCount, isAnnouncement 
-            FROM posts 
-            WHERE email = %(email)s AND anonymous = %(anonymous)s
-        ''',
+        'SELECT * FROM posts WHERE email = %(email)s',
         {
-            'email': email,
-            'anonymous': False
+            'email': email
         }
     )
     user_posts = cursor.fetchall()[::-1]
-
-    # Add commentsCount to each post
-    for post in user_posts:
-        count_comments(cursor, post)
 
     return user_posts
 
@@ -64,10 +62,9 @@ def fetch_user_comments(email):
 
     # Fetch comments associated with the given email
     cursor.execute(
-        'SELECT * FROM comments WHERE email = %(email)s AND anonymous = %(anonymous)s',
+        'SELECT * FROM comments WHERE email = %(email)s',
         {
-            'email': email,
-            'anonymous': False
+            'email': email
         }
     )
     user_comments = cursor.fetchall()[::-1]
