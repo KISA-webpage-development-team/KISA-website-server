@@ -3,8 +3,13 @@ import server
 from .helpers import fetch_user_posts, fetch_user_comments, token_required
 
 # Users API ------------------------------------------------------------
-# /api/v2/users
-@server.application.route("/api/v2/users/<string:email>/",
+# /api/v1/users/{email}
+
+# @desc    Get user's basic info using email
+# @route   GET /api/v1/users/<string:email>/
+# @argv    string:email
+# TEST: http "http://localhost:8000/api/v1/users/wookwan@umich.edu/"
+@server.application.route("/api/v1/users/<string:email>/",
                   methods=['GET'])
 @token_required
 def get_user(email):
@@ -31,7 +36,11 @@ def get_user(email):
 
     return flask.jsonify(**context), 200
 
-@server.application.route("/api/v2/users/<string:email>/", methods=['PATCH'])
+# @desc    Update user info
+# @route   PUT /api/v1/users/<string:email>/
+# @argv    string:email
+# TEST:  curl -X PATCH -H "Content-Type: application/json" -d '{"fullname": "지윤성"}' http://localhost:8000/api/v1/users/wookwan@umich.edu/
+@server.application.route("/api/v1/users/<string:email>/", methods=['PATCH'])
 @token_required
 def put_user(email):
     # Assuming the incoming data is in JSON format
@@ -53,7 +62,11 @@ def put_user(email):
 
     return flask.jsonify({'message': 'User updated successfully'}), 200
 
-@server.application.route("/api/v2/users/<string:email>/", methods=['DELETE'])
+# @desc    Delete user
+# @route   DELETE /api/v1/users/{email}
+# @argv    string:email
+# TEST: curl -X DELETE http://localhost:8000/api/v1/users/wookwan@umich.edu/
+@server.application.route("/api/v1/users/<string:email>/", methods=['DELETE'])
 @token_required
 def delete_user(email):
     cursor = server.model.Cursor()
@@ -81,7 +94,11 @@ def delete_user(email):
     else:
         return flask.jsonify({'error': 'User not found'}), 404
     
-@server.application.route("/api/v2/users/<string:email>/posts/",
+# @desc    Get all posts created by user
+# @route   GET /api/v1/users/<string:email>/posts
+# @argv    string:email
+# TEST: http "http://localhost:8000/api/v1/users/wookwan@umich.edu/posts
+@server.application.route("/api/v1/users/<string:email>/posts/",
                   methods=['GET'])
 @token_required
 def get_user_posts(email):
@@ -111,7 +128,11 @@ def get_user_posts(email):
     # Return the user's posts
     return flask.jsonify({'posts': user_posts}), 200
 
-@server.application.route("/api/v2/users/<string:email>/comments/",
+# @desc    Get all comments created by user
+# @route   GET /api/v1/users/<string:email>/comments
+# @argv    string:email
+# TEST: http "http://localhost:8000/api/v1/users/wookwan@umich.edu/comments
+@server.application.route("/api/v1/users/<string:email>/comments/",
                   methods=['GET'])
 @token_required
 def get_user_comments(email):
