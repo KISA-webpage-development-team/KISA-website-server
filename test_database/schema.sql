@@ -14,6 +14,7 @@ CREATE TABLE comments (
   isCommentOfComment BOOLEAN NOT NULL,
   parentCommentid INTEGER DEFAULT NULL,
   anonymous TINYINT(1) NOT NULL DEFAULT 0,
+  secret TINYINT(1) NOT NULL DEFAULT 0,
   FOREIGN KEY (email) REFERENCES users (email) ON DELETE CASCADE,
   FOREIGN KEY (postid) REFERENCES posts (postid) ON DELETE CASCADE
 );
