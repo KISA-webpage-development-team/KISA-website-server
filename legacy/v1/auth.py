@@ -5,8 +5,12 @@ from .helpers import token_required
 import boto3
 
 # AUTH APIS ----------------------------------------------------------f
-# /api/v2/auth
-@server.application.route('/api/v2/auth/userExists/<string:email>', methods=['GET'])
+# /api/v1/auth
+
+# @desc    Check whether user already exists in database
+# @route   GET /api/v1/auth/userExists?email={email}
+# @params  {query} string:email
+@server.application.route('/api/v1/auth/userExists/<string:email>', methods=['GET'])
 def check_existing_user(email):
     cursor = server.model.Cursor()
 
@@ -29,7 +33,11 @@ def check_existing_user(email):
        "message": "requested user does not exist"
     }), 409
     
-@server.application.route('/api/v2/auth/signup/', methods=['POST'])
+# @desc    Check whether user already exists in database
+# @route   GET /api/v1/auth/signup
+# @params  {body} string:email string:name
+# @test    curl -X POST -H "Content-Type: application/json" -d '{"fullname": "권우관", "email": "wookwan@umich.edu", "bornYear": 2000, "bornMonth": 9, "bornDate": 20, "major": "Computer Science", "gradYear": 2025}' http://localhost:8000/api/v1/auth/signup/
+@server.application.route('/api/v1/auth/signup/', methods=['POST'])
 def add_user():
     body = flask.request.get_json()
 
@@ -63,7 +71,10 @@ def add_user():
        "message": f"user {body['email']} created"
     }), 201
 
-@server.application.route('/api/v2/auth/isAdmin/<string:email>', methods=['GET'])
+# @desc    Check whether user is admin using email
+# @route   GET /api/v1/auth/isAdmin?email={email}
+# @params  {query} string:email
+@server.application.route('/api/v1/auth/isAdmin/<string:email>', methods=['GET'])
 @token_required
 def is_admin(email):
     cursor = server.model.Cursor()

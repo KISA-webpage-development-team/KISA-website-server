@@ -5,3 +5,6 @@
 
 # Virtual environment
 venv/*
+
+# Secret key
+secret_key.txt

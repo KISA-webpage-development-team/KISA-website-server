@@ -3,8 +3,14 @@ import server
 from .helpers import count_comments
 
 # BOARDS API ------------------------------------------------------------
-# /api/v2/boards
-@server.application.route("/api/v2/boards/<string:board_type>/posts/",
+# /api/v1/boards
+
+# @desc    Get all posts of specified board by page number and size
+# @route   GET /api/v1/boards/<string:board_type>/posts
+# @params  {path} string:board_type
+# @args    size, page
+# TEST: "http://localhost:8000/api/v1/boards/community/posts"
+@server.application.route("/api/v1/boards/<string:board_type>/posts/",
                   methods=['GET'])
 def get_posts_by_board_type(board_type):
     cursor = server.model.Cursor()
@@ -66,7 +72,11 @@ def get_posts_by_board_type(board_type):
     }
     return flask.jsonify(**context), 200
 
-@server.application.route("/api/v2/boards/<string:board_type>/announcements/",
+# @desc    Get all annoucements of a specified board type
+# @route   GET /api/v1/boards/<string:board_type>/announcements
+# @params  {path} string:board_type
+# TEST: "http://localhost:8000/api/v1/boards/community/announcements"
+@server.application.route("/api/v1/boards/<string:board_type>/announcements/",
                           methods=['GET'])
 def get_announcements_by_board_type(board_type):
     cursor = server.model.Cursor()
@@ -97,7 +107,11 @@ def get_announcements_by_board_type(board_type):
     }
     return flask.jsonify(**context), 200
 
-@server.application.route("/api/v2/boards/<string:board_type>/count/",
+# @desc    Get total count of non-announcement posts in board_type
+# @route   GET /api/v1/boards/<string:board_type>/count
+# @params  {path} string:board_type
+# TEST: "http://localhost:8000/api/v1/boards/community/count"
+@server.application.route("/api/v1/boards/<string:board_type>/count/",
                   methods=['GET'])
 def get_post_count(board_type):
     cursor = server.model.Cursor()
