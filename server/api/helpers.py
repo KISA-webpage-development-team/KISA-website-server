@@ -38,6 +38,7 @@ def count_comments(cursor, post):
 
 def count_likes(cursor, target, item):
     id = item['postid'] if target == 'post' else item['commentid']
+    
     cursor.execute(
         '''
         SELECT COUNT(*) FROM %(target)slikes
