@@ -36,6 +36,21 @@ def count_comments(cursor, post):
     comments_count = cursor.fetchone()["COUNT(*)"]
     post["commentsCount"] = comments_count
 
+def count_likes(cursor, target, item):
+    id = item['postid'] if target == 'post' else item['commentid']
+    cursor.execute(
+        '''
+        SELECT COUNT(*) FROM %(target)slikes
+        WHERE %(target)sid = %(id)s",
+        ''',
+        {
+            'target': target,
+            'id': id
+        }
+    )
+    likes_count = cursor.fetchone()['COUNT(*)']
+    item['likesCount'] = likes_count
+
 def fetch_user_posts(email):
     cursor = server.model.Cursor()
 
@@ -97,6 +112,9 @@ def delete_child_comments(comment, cursor):
     )
 
 def get_child_comments(comment, cursor):
+    # Before adding child comments, count likes for each comment
+    count_likes(cursor, "comment", comment)
+
     # Set fullname according to email of the commenter
     cursor.execute(
         "SELECT fullname FROM users WHERE email = %(email)s",
