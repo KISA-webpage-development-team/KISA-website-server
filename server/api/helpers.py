@@ -6,10 +6,6 @@ from functools import wraps
 def token_required(func):
     @wraps(func)
     def token_test(*args, **kwargs):
-        # Do nothing if this is the test local server
-        if server.args.l:
-            return func(*args, **kwargs)
-
         token = flask.request.headers.get('Authorization')
         if not token:
             return flask.jsonify({'message': 'Missing token'}), 401
