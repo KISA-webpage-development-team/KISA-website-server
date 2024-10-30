@@ -122,3 +122,15 @@ def get_comments(postid):
         get_child_comments(comment_depth1, cursor)
 
     return flask.jsonify(comments)
+
+@server.application.route("/api/v2/comments/likes/<int:commentid>/", methods=['GET'])
+def count_commentlike(commentid):
+    cursor = server.model.Cursor()
+    cursor.execute(
+        "SELECT COUNT(*) FROM commentlikes WHERE commentid = %(commentid)s",
+        {
+            'commentid': commentid
+        }
+    )
+    likes_count = cursor.fetchone()['COUNT(*)']
+    return flask.jsonify({'likesCount': likes_count}), 200

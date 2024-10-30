@@ -165,3 +165,15 @@ def increment_readcount(postid):
     else:
         # Return an error message if the post doesn't exist
         return flask.jsonify({'error': 'Post not found'}), 404
+    
+@server.application.route("/api/v2/posts/likes/<int:postid>/", methods=['GET'])
+def count_postlike(postid):
+    cursor = server.model.Cursor()
+    cursor.execute(
+        "SELECT COUNT(*) FROM postlikes WHERE postid = %(postid)s",
+        {
+            'postid': postid
+        }
+    )
+    likes_count = cursor.fetchone()['COUNT(*)']
+    return flask.jsonify({'likesCount': likes_count}), 200
