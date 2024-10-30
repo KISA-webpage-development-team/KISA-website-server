@@ -1,10 +1,13 @@
+# import argparse
 from server import application
-from server import args
+import argparse
 
 # run the application.
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-l', action='store_true')
+    args, unknown = parser.parse_known_args()
     if args.l:
-        print("Local server is running ...")
         application.debug = True
         application.run(host='0.0.0.0',port=8000)    
     else:
