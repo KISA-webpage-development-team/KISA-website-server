@@ -23,12 +23,10 @@ def post_like(id):
     # Query database to insert like
     cursor = server.model.Cursor()
     cursor.execute(
-        '''
-        INSERT INTO %(target)slikes (email, %(target)sid)
-        VALUES (%(email)s, %(id)s)
+        f'''
+        INSERT INTO {target}likes (email, {target}id) VALUES (%(email)s, %(id)s)
         ''',
         {
-            'target': target,
             'email': email,
             'id': id
         }
@@ -55,12 +53,11 @@ def delete_like(id):
     # Query database to insert like
     cursor = server.model.Cursor()
     cursor.execute(
-        '''
+        f'''
         DELETE FROM %(target)slikes
         WHERE email = %(email)s AND %(target)sid = %(id)s
         ''',
         {
-            'target': target,
             'email': email,
             'id': id
         }
@@ -87,12 +84,11 @@ def like_or_not(id):
     # Query database to check if the user liked the post / comment
     cursor = server.model.Cursor()
     cursor.execute(
-        '''
-        SELECT * FROM %(target)slikes
-        WHERE email = %(email)s AND %(target)sid = %(id)s
+        f'''
+        SELECT * FROM {target}likes
+        WHERE email = %(email)s AND {target}id = %(id)s
         ''',
         {
-            'target': target,
             'email': email,
             'id': id
         }

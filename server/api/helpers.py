@@ -36,12 +36,10 @@ def count_likes(cursor, target, item):
     id = item['postid'] if target == 'post' else item['commentid']
     
     cursor.execute(
-        '''
-        SELECT COUNT(*) FROM %(target)slikes
-        WHERE %(target)sid = %(id)s",
+        f'''
+        SELECT COUNT(*) FROM {target}likes WHERE {target}id = %(id)s
         ''',
         {
-            'target': target,
             'id': id
         }
     )
