@@ -4,7 +4,7 @@ from .helpers import token_required
 
 # Likes API ------------------------------------------------------------
 # /api/v2/likes
-@server.application.route("/api/v2/likes/<int:id>", methods=['POST'])
+@server.application.route("/api/v2/likes/<int:id>/", methods=['POST'])
 @token_required
 def post_like(id):
     '''
@@ -35,7 +35,7 @@ def post_like(id):
     # Return success message
     return flask.jsonify({"message": f"{target} liked successfully"}), 201
 
-@server.application.route("/api/v2/likes/<int:id>", methods=['DELETE'])
+@server.application.route("/api/v2/likes/<int:id>/", methods=['DELETE'])
 @token_required
 def delete_like(id):
     '''
@@ -66,8 +66,8 @@ def delete_like(id):
     # Return success message
     return flask.jsonify({"message": f"{target} unliked successfully"}), 204
 
-@server.application.route("/api/v2/likes/<int:id>", methods=['GET'])
-# @token_required
+@server.application.route("/api/v2/likes/<int:id>/", methods=['GET'])
+@token_required
 def like_or_not(id):
     '''
     Returns whether the user liked the post / comment or not.
