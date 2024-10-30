@@ -4,17 +4,70 @@ from .helpers import token_required
 
 # Likes API ------------------------------------------------------------
 # /api/v2/likes
-@server.application.route("/api/v2/likes/<int:id>", methods=['POST', 'DELETE'])
+@server.application.route("/api/v2/likes/<int:id>", methods=['POST'])
 @token_required
-def contrast_like(id):
+def post_like(id):
     '''
-    Contrast likes for post or comment. Post or comment mode specified in body.
-    Creates likes if it does not exist, deletes like if it does exist.
+    Like a post or comment.
+    Email and target specified in body.
     '''
+    # Fetch email and target from the request body
     body = flask.request.get_json()
     email = body['email']
-    target = body['target'] # 'posts' or 'comments'
-    pass
+    target = body['target'] # 'post' or 'comment'
+
+    # Handle bad request
+    if not email or not target or target not in ['post', 'comment']:
+        return flask.jsonify({"error": "Missing required request body key"}), 400
+
+    # Query database to insert like
+    cursor = server.model.Cursor()
+    cursor.execute(
+        '''
+        INSERT INTO %(target)slikes (email, %(target)sid)
+        VALUES (%(email)s, %(id)s)
+        ''',
+        {
+            'target': target,
+            'email': email,
+            'id': id
+        }
+    )
+
+    # Return success message
+    return flask.jsonify({"message": f"{target} liked successfully"}), 201
+
+@server.application.route("/api/v2/likes/<int:id>", methods=['DELETE'])
+@token_required
+def delete_like(id):
+    '''
+    Unlike a post or comment.
+    Email and target specified in url parameter.
+    '''
+    # Fetch email and target from the url arguments
+    email = flask.request.args.get("email", type=str)
+    target = flask.request.args.get("target", type=str)
+
+    # Handle bad request
+    if not email or not target or target not in ['post', 'comment']:
+        return flask.jsonify({"error": "Missing required request body key"}), 400
+
+    # Query database to insert like
+    cursor = server.model.Cursor()
+    cursor.execute(
+        '''
+        DELETE FROM %(target)slikes
+        WHERE email = %(email)s AND %(target)sid = %(id)s
+        ''',
+        {
+            'target': target,
+            'email': email,
+            'id': id
+        }
+    )
+
+    # Return success message
+    return flask.jsonify({"message": f"{target} unliked successfully"}), 204
 
 @server.application.route("/api/v2/likes/<int:id>", methods=['GET'])
 @token_required
@@ -22,7 +75,31 @@ def like_or_not(id):
     '''
     Returns whether the user liked the post / comment or not.
     '''
+    # Fetch email and target from the request body
     body = flask.request.get_json()
     email = body['email']
     target = body['target'] # 'posts' or 'comments'
-    pass
+
+    # Handle bad request
+    if not email or not target or target not in ['posts', 'comments']:
+        return flask.jsonify({"error": "Missing required request body key"}), 400
+    
+    # Query database to check if the user liked the post / comment
+    cursor = server.model.Cursor()
+    cursor.execute(
+        '''
+        SELECT * FROM %(target)slikes
+        WHERE email = %(email)s AND %(target)sid = %(id)s
+        ''',
+        {
+            'target': target,
+            'email': email,
+            'id': id
+        }
+    )
+    like = cursor.fetchone()
+
+    if not like:
+        return flask.jsonify({"liked": False}), 200
+    else:
+        return flask.jsonify({"liked": True}), 200

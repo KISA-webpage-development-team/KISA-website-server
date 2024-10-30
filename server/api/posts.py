@@ -1,6 +1,6 @@
 import flask
 import server
-from .helpers import token_required, count_comments
+from .helpers import token_required, count_comments, count_likes
 from .image_handler import handle_imgs, delete_imgs
 
 # POSTS API ------------------------------------------------------------
@@ -25,7 +25,9 @@ def get_post(postid):
     if not post:
         return flask.jsonify({'error': 'No Post Found'}), 404
     
+    # Count the number of comments and likes of the post
     count_comments(cursor, post)
+    count_likes(cursor, "post", post)
 
     # render context
     context = post

@@ -4,7 +4,10 @@
 !.elasticbeanstalk/*.global.yml
 
 # Virtual environment
-venv/*
+virt/*
 
 # Secret key
 secret_key.txt
+
+# Python cache directories
+__pycache__/

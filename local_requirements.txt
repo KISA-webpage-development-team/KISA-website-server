@@ -4,7 +4,6 @@ blinker==1.7.0
 boto3==1.34.110
 botocore==1.34.110
 cement==2.8.2
-certifi @ file:///private/tmp/certifi-20240307-4614-15z07l/certifi-2024.2.2
 cffi==1.16.0
 charset-normalizer==3.3.2
 click==8.1.7
@@ -42,4 +41,3 @@ urllib3==1.26.18
 virtualenv==20.25.1
 wcwidth==0.1.9
 Werkzeug==3.0.1
-wheel @ file:///opt/homebrew/Cellar/python%403.12/3.12.2_1/libexec/wheel-0.42.0-py3-none-any.whl#sha256=5f1ca525bef7466225922019d72cb06a9e91cd3ff807ddd4be1acb84655e5107
