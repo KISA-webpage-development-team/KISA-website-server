@@ -1,6 +1,6 @@
 import flask
 import server
-from .helpers import count_comments
+from .helpers import count_comments, count_likes
 
 # BOARDS API ------------------------------------------------------------
 # /api/v2/boards
@@ -52,8 +52,9 @@ def get_posts_by_board_type(board_type):
     if not posts_in_page:
         return flask.jsonify({'error': 'No posts in requested page'}), 404
 
-    # Count the number of comments of each post and add to response result
+    # Count the number of comments and likes of each post
     for post in posts_in_page:
+        count_likes(cursor, 'post', post)
         count_comments(cursor, post)
 
     # render context

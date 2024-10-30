@@ -54,8 +54,8 @@ def delete_like(id):
     cursor = server.model.Cursor()
     cursor.execute(
         f'''
-        DELETE FROM %(target)slikes
-        WHERE email = %(email)s AND %(target)sid = %(id)s
+        DELETE FROM {target}likes
+        WHERE email = %(email)s AND {target}id = %(id)s
         ''',
         {
             'email': email,
