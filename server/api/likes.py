@@ -67,7 +67,7 @@ def delete_like(id):
     return flask.jsonify({"message": f"{target} unliked successfully"}), 204
 
 @server.application.route("/api/v2/likes/<int:id>", methods=['GET'])
-@token_required
+# @token_required
 def like_or_not(id):
     '''
     Returns whether the user liked the post / comment or not.
@@ -78,7 +78,7 @@ def like_or_not(id):
     target = body['target'] # 'posts' or 'comments'
 
     # Handle bad request
-    if not email or not target or target not in ['posts', 'comments']:
+    if not email or not target or target not in ['post', 'comment']:
         return flask.jsonify({"error": "Missing required request body key"}), 400
     
     # Query database to check if the user liked the post / comment

@@ -20,3 +20,6 @@ from server.api.users import put_user
 from server.api.users import delete_user
 from server.api.users import get_user_posts
 from server.api.users import get_user_comments
+from server.api.likes import post_like
+from server.api.likes import delete_like
+from server.api.likes import like_or_not
