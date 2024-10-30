@@ -73,9 +73,8 @@ def like_or_not(id):
     Returns whether the user liked the post / comment or not.
     '''
     # Fetch email and target from the request body
-    body = flask.request.get_json()
-    email = body['email']
-    target = body['target'] # 'posts' or 'comments'
+    email = flask.request.args.get("email", type=str)
+    target = flask.request.args.get("target", type=str)
 
     # Handle bad request
     if not email or not target or target not in ['post', 'comment']:
