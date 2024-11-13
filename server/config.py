@@ -1,3 +1,5 @@
+import os
+
 """KISA website development configuration."""
 
 # Root of this application, useful if it doesn't occupy an entire domain
@@ -14,4 +16,8 @@ CLOUDFRONT_URL = "https://d1jb1ppquwym6d.cloudfront.net"
 MYSQL_HOST = 'awseb-e-bxtm2zpybp-stack-awsebrdsdatabase-7pth6zviixzm.crcom8asae83.us-east-2.rds.amazonaws.com'
 MYSQL_USER = 'admin'
 MYSQL_PASSWORD = 'Kisa_umich_23'
-MYSQL_DB = 'ebdb'
+
+# production and development configuration
+    # must run the following command on commandline before running the server
+    # export FLASK_ENV=development
+MYSQL_DB = 'testdb' if os.getenv('FLASK_ENV') == 'development' else 'ebdb'
