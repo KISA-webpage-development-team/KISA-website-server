@@ -1,7 +1,7 @@
 CREATE TABLE ebdb.pocha (
     pochaID INT AUTO_INCREMENT PRIMARY KEY,
-    startDate TIMESTAMP NOT NULL,
-    endDate TIMESTAMP NOT NULL,
+    startDate DATETIME NOT NULL,
+    endDate DATETIME NOT NULL,
     title VARCHAR(32) NOT NULL,
     description VARCHAR(1024) NOT NULL
 );
