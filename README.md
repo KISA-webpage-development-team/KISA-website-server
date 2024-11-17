@@ -38,29 +38,6 @@ Install all virtual environment dependencies from the requirements.txt file.
 (virt) ~/kisaweb-server $ pip install -r requirements.txt
 ```
 
-### Setting up the local database
-
-- The local environment uses a dedicated 'fake' database.
-- This allows all users developing this server to freely test and modify the database.
-
-Set the permissions of the shell script in the bin/ directory to 'executable'.
-
-```
-(virt) ~/kisaweb-server $ chmod +x bin/local_db.sh
-```
-
-Now that the shell script is executable, create a fake database using it.
-
-```
-(virt) ~/kisaweb-server $ ./bin/local_db.sh create
-```
-
-Whenever you have to reset the database, use the following command:
-
-```
-(virt) ~/kisaweb-server $ ./bin/local_db.sh reset
-```
-
 ### Access API endpoints / testing
 
 - How to run the program
@@ -105,6 +82,11 @@ Contributors names and contact info
   - Local test database added.
   - Anonymous posts / comments added.
   - Like methods to be implemented in further versions.
+- v2.0.1
+  - Test database is not local anymore.
+  - Test database is in deployed AWS RDS instance, named 'testdb'.
+  - Application now automatically generates an environment variable when runned.
+  - Based on the environment variable, server will automatically access the appropriate database. When hosted by the local environment, it will access 'testdb', and in the production environment, it will access 'ebdb'.
 
 ## Acknowledgments
 
