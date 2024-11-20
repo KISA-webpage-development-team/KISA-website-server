@@ -1,10 +1,10 @@
 import flask
 import server
-from .helpers import delete_child_comments, get_child_comments, token_required
+from ..helpers import delete_child_comments, get_child_comments, token_required
 
 
 # COMMENTS API ------------------------------------------------------------
-# /api/v2/comments
+# /api/v2/bulletin/comments
 @server.application.route("/api/v2/comments/<int:postid>/", methods=["POST"])
 @token_required
 def post_comment(postid):

@@ -1,11 +1,11 @@
 import flask
 import server
 import datetime
-from .helpers import token_required
+from ..helpers import token_required
 from collections import defaultdict
 
 # POCHA APIS -----------------------------------------------------------
-# /api/v2/pocha
+# /api/v2/pocha/info
 
 @server.application.route('/api/v2/pocha/status-info/', methods=['GET'])
 def get_pocha():
@@ -92,7 +92,3 @@ def get_pocha_menu(pochaid):
         )
 
     return flask.jsonify(response), 200
-
-# @server.application.route('/api/v2/pocha/status-info/', methods=['GET'])
-# def get_pocha():
-#     pass

@@ -41,7 +41,6 @@ def get_post(postid):
 def add_post():
     # Fetch body from request
     body = flask.request.get_json()
-    print(body)
 
     # Fetch next postid by inserting a dummy post
     cursor = server.model.Cursor()
