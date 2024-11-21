@@ -1,0 +1,403 @@
+import flask
+import server
+from ..helpers import token_required, check_orderItems_and_delete
+
+# POCHA APIS -----------------------------------------------------------
+# /api/v2/pocha/cart
+
+@server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/', methods=['POST', 'PATCH', 'DELETE'])
+# @token_required
+def modify_cart(email, pochaID):
+    '''
+    Add orderItem using session email, invoked when user adds item into cart
+    '''
+    # fetch body from request
+    body = flask.request.get_json()
+
+    # initialize variables from body
+    menuID = body["menuID"]
+    quantity = body["quantity"]
+
+    # check if user exists
+    cursor = server.model.Cursor()
+    cursor.execute(
+        "SELECT * FROM users "
+        "WHERE email = %(email)s",
+        {
+            'email': email
+        }
+    )
+    user = cursor.fetchone()
+    if not user:
+       return flask.jsonify({"error": "requested user does not exist"}), 404
+    
+    # check if pochaID exists
+    cursor.execute(
+        "SELECT * FROM pocha "
+        "WHERE pochaID = %(pochaID)s",
+        {
+            'pochaID': pochaID
+        }
+    )
+    existing_pocha = cursor.fetchone()
+    if not existing_pocha:
+       return flask.jsonify({"error": "requested pocha does not exist"}), 404
+
+    # check if order exists
+    cursor.execute(
+        '''
+        SELECT * FROM `order` 
+        WHERE email = %(email)s 
+        AND parentPochaID = %(parentPochaID)s 
+        AND isPaid = %(isPaid)s
+        ''',
+        {
+            'email': email,
+            'parentPochaID': pochaID,
+            'isPaid': False
+        }
+    )
+    existing_order = cursor.fetchone()
+    
+    # check if menu is immediatePrep
+    cursor.execute(
+        '''
+        SELECT isImmediatePrep FROM menu 
+        WHERE menuID=%(menuID)s
+        ''',
+        {
+            'menuID': menuID
+        }
+    )
+    existing_menu = cursor.fetchone()
+
+    if not existing_menu:
+        return flask.jsonify({'error': 'Menu not found'}), 404
+    
+    isImmediatePrep = existing_menu['isImmediatePrep']
+
+    # Case 1: quantity is a positive value (PATCH, POST)
+    if quantity > 0:
+        # Case 1-1: cart is empty at the moment
+        if not existing_order:
+            # create order row
+            cursor.execute(
+                '''
+                INSERT INTO `order` 
+                (email, parentPochaID) 
+                VALUES (%(email)s, %(parentPochaID)s)
+                ''',
+                {
+                    'email': email,
+                    'parentPochaID': pochaID
+                }
+            )
+            newOrderID = cursor.lastrowid()
+        
+            # Case 1-1-1: menu immediatePrep is False
+            if not isImmediatePrep:
+                # create {quantity} rows of orderItems
+                for _ in range(quantity):
+                    cursor.execute(
+                        '''
+                        INSERT INTO orderItem 
+                        (status, quantity, parentOrderID, menuID) 
+                        VALUES (%(status)s, %(quantity)s, %(parentOrderID)s, %(menuID)s)
+                        ''',
+                        {
+                            'status': 'pending',
+                            'quantity': 1,
+                            'parentOrderID': newOrderID,
+                            'menuID': menuID,
+                        }
+                    )
+                return flask.jsonify(
+                    {
+                        "message": (
+                            f"order with orderID {newOrderID} created, and\n"
+                            f"{quantity} rows of menuID: {menuID} successfully\n"
+                            "added to cart."
+                        )
+                    }
+                ), 201
+    
+            # Case 1-1-2: menu immediatePrep is True
+            else:
+                # create orderItem row with quantity={quantity}
+                cursor.execute(
+                    '''
+                    INSERT INTO orderItem 
+                    (status, quantity, parentOrderID, menuID) 
+                    VALUES (%(status)s, %(quantity)s, %(parentOrderID)s, %(menuID)s)
+                    ''',
+                    {
+                        'status': 'pending',
+                        'quantity': quantity,
+                        'parentOrderID': newOrderID,
+                        'menuID': menuID,
+                    }
+                )
+                return flask.jsonify(
+                    {
+                        "message": f"""
+                        order with orderID {newOrderID} created, and 
+                        orderItems with quantity: {quantity} 
+                        with menuID: {menuID} 
+                        successfully added to cart.
+                        """
+                    }
+                ), 201
+
+        # Case 1-2: cart is not empty; order and orderItem exists
+        else:
+            # Case 1-2-1: menu immediatePrep is False
+            if not isImmediatePrep:
+                # create {quantity} rows of orderItems
+                for _ in range(quantity):
+                    cursor.execute(
+                        """
+                        INSERT INTO orderItem
+                        (status, quantity, parentOrderID, menuID)
+                        VALUES (%(status)s, %(quantity)s, %(parentOrderID)s, %(menuID)s)
+                        """,
+                        {
+                            'status': 'pending',
+                            'quantity': 1,
+                            'parentOrderID': existing_order["orderID"],
+                            'menuID': menuID,
+                        }
+                    )
+                return flask.jsonify(
+                    {
+                        "message": f"""
+                        {quantity} rows of menuID: {menuID} successfully
+                        added to order with orderID: {existing_order['orderID']}
+                        """
+                    }
+                ), 201
+        
+            # Case 1-2-2: menu immediatePrep is True
+            else:
+                # create orderItem row with quantity={quantity}
+                cursor.execute(
+                    """
+                    UPDATE orderItem
+                    SET quantity = quantity + %(quantity)s
+                    WHERE parentOrderID = %(parentOrderID)s
+                    AND menuID = %(menuID)s
+                    AND status = %(status)s
+                    """,
+                    {
+                        'quantity': quantity,
+                        'parentOrderID': existing_order["orderID"],
+                        'menuID': menuID,
+                        'status': 'pending',
+                    }
+                )
+
+                if cursor.rowcount() == 0:
+                    cursor.execute(
+                        """
+                        INSERT INTO orderItem
+                        (status, quantity, parentOrderID, menuID)
+                        VALUES (%(status)s, %(quantity)s, %(parentOrderID)s, %(menuID)s)
+                        """,
+                        {
+                            'status': 'pending',
+                            'quantity': quantity,
+                            'parentOrderID': existing_order["orderID"],
+                            'menuID': menuID,
+                        }
+                    )
+                
+                # respond with success message
+                return flask.jsonify(
+                    {
+                        "message": f"""
+                        orderItem with quantity: {quantity} 
+                        with menuID: {menuID} 
+                        successfully added to order 
+                        with orderID: {existing_order['orderID']}
+                        """
+                    }
+                ), 201
+    
+    # Case 2: quantity is a negative value (PATCH, DELETE)
+    elif quantity < 0:
+        # Case 2-1: menu immediatePrep is False
+        if not isImmediatePrep:
+            # Case 2-1-1: deleting one item from cart:
+            if quantity == -1:
+                # delete lastly inserted orderItem
+                cursor.execute(
+                    '''
+                    DELETE FROM orderItem 
+                    WHERE parentOrderID=%(parentOrderID)s 
+                    AND menuID=%(menuID)s 
+                    AND status=%(status)s
+                    ORDER BY orderItemID DESC 
+                    LIMIT 1
+                    ''',
+                    {
+                        'parentOrderID': existing_order['orderID'],
+                        'menuID': menuID,
+                        'status': 'pending',
+                    }
+                )
+                deleted_rows = cursor.rowcount()
+
+                # error handling: no rows were deleted
+                if deleted_rows == 0:
+                    # return error message
+                    return flask.jsonify(
+                        {
+                            "error": f"""
+                            1 row expected to be deleted, but
+                            no row deleted, check if there is a menuItem
+                            with pending status, where its parentOrder is not paid yet
+                            """
+                        }
+                    ), 424
+                
+                # if there no longer exists orderItems for a order,
+                # delete the order
+                check_orderItems_and_delete(cursor, existing_order['orderID'])
+                
+                # respond with success message
+                return flask.jsonify(
+                    {
+                        "message": f"""
+                        1 orderItem successfully deleted from 
+                        order with orderID: {existing_order['orderID']}
+                        """
+                    }
+                ), 204
+
+            # Case 2-1-2: deleting entire menu from cart:
+            elif quantity < -1:
+                # delete all orderItem rows with matching parentOrderID and menuID
+                cursor.execute(
+                    '''
+                    DELETE FROM orderItem 
+                    WHERE parentOrderID=%(parentOrderID)s 
+                    AND menuID=%(menuID)s 
+                    ''',
+                    {
+                        'parentOrderID': existing_order['orderID'],
+                        'menuID': menuID,
+                    }
+                )
+                deleted_rows = cursor.rowcount()
+
+                # error handling: deleted rows does not match with expected
+                if deleted_rows != (-1 * quantity):
+                    # first, rollback the most recent execution
+                    cursor.rollback()
+
+                    # return error message
+                    return flask.jsonify(
+                        {
+                            "error": f"""
+                            {-1 * quantity} rows expected to be deleted, but
+                            {deleted_rows} deleted
+                            """
+                        }
+                    ), 424
+                
+                # if there no longer exists orderItems for a order,
+                # delete the order
+                check_orderItems_and_delete(cursor, existing_order['orderID'])
+                
+                return flask.jsonify(
+                    {
+                        "message": f"""
+                        {-1 * quantity} orderItem(s) successfully deleted from 
+                        order with orderID: {existing_order['orderID']}
+                        """
+                    }
+                ), 204
+
+        # Case 2-2: menu immediatePrep is True
+        else:
+            # Case 2-2-1: deleting one item from cart:
+            if quantity == -1:
+                # decrement quantity or delete row
+                cursor.execute(
+                    '''
+                    UPDATE orderItem
+                    SET quantity = quantity - 1
+                    WHERE parentOrderID = %(parentOrderID)s
+                    AND menuID = %(menuID)s;
+                    DELETE FROM orderItem
+                    WHERE parentOrderID = %(parentOrderID)s
+                    AND menuID = %(menuID)s
+                    AND quantity = 0;
+                    ''',
+                    {
+                        'parentOrderID': existing_order['orderID'],
+                        'menuID': menuID
+                    }
+                )
+
+                # if there no longer exists orderItems for a order,
+                # delete the order
+                check_orderItems_and_delete(cursor, existing_order['orderID'])
+
+                return flask.jsonify(
+                    {
+                        "message": f"""
+                        {-1 * quantity} isImmediatePrep orderItem(s) 
+                        successfully deducted from 
+                        order with orderID: {existing_order['orderID']}
+                        """
+                    }
+                ), 204
+            
+
+            # Case 2-2-2: deleting entire menu from cart:
+            elif quantity < -1:
+                # delete one row of menuItem
+                cursor.execute(
+                    '''
+                    DELETE FROM orderItem 
+                    WHERE parentOrderID=%(parentOrderID)s 
+                    AND menuID=%(menuID)s 
+                    AND quantity=%(quantity)s
+                    ''',
+                    {
+                        'parentOrderID': existing_order['orderID'],
+                        'menuID': menuID,
+                        'quantity': -1 * quantity,
+                    }
+                )
+                deleted_rows = cursor.rowcount()
+
+                # error handling: deleted rows does not match with expected
+                if deleted_rows == 0:
+                    # return error message
+                    return flask.jsonify(
+                        {
+                            "error": f"""
+                            1 isImmediatePrep row expected to be deleted, but 
+                            no row deleted, check if the quantity to delete 
+                            (negative value) is correct
+                            """
+                        }
+                    ), 424
+                
+                # if there no longer exists orderItems for a order,
+                # delete the order
+                check_orderItems_and_delete(cursor, existing_order['orderID'])
+                
+                return flask.jsonify(
+                    {
+                        "message": (
+                            f"{-1 * quantity} isImmediatePrep orderItem(s) "
+                            f"successfully deducted from "
+                            f"order with orderID: {existing_order['orderID']}"
+                        )
+                    }
+                ), 204
+
+    else:
+        return flask.jsonify({"error": "invalid quantity"}), 400

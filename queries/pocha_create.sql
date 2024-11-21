@@ -22,6 +22,7 @@ CREATE TABLE ebdb.order (
     orderID INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(40),
     parentPochaID INT NOT NULL,
+    isPaid TINYINT NOT NULL DEFAULT 0;
     FOREIGN KEY (parentPochaID) REFERENCES ebdb.pocha(pochaID),
     FOREIGN KEY (email) REFERENCES ebdb.users(email)
 );

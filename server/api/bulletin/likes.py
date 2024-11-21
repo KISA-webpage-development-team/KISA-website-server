@@ -1,9 +1,9 @@
 import flask
 import server
-from .helpers import token_required
+from ..helpers import token_required
 
 # Likes API ------------------------------------------------------------
-# /api/v2/likes
+# /api/v2/bulletin/likes
 @server.application.route("/api/v2/likes/<int:id>/", methods=['POST'])
 @token_required
 def post_like(id):

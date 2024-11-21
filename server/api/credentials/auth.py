@@ -1,16 +1,14 @@
 # entry point of flask backend
 import flask
 import server
-from .helpers import token_required
+from ..helpers import token_required
 import boto3
 
 # AUTH APIS ----------------------------------------------------------f
-# /api/v2/auth
+# /api/v2/credentials/auth
 @server.application.route('/api/v2/auth/userExists/<string:email>', methods=['GET'])
 def check_existing_user(email):
     cursor = server.model.Cursor()
-
-    # Fetch the comment based on commentid
     cursor.execute(
         "SELECT * FROM users "
         "WHERE email = %(email)s",
@@ -27,7 +25,7 @@ def check_existing_user(email):
        }), 200
     return flask.jsonify({
        "message": "requested user does not exist"
-    }), 409
+    }), 404
     
 @server.application.route('/api/v2/auth/signup/', methods=['POST'])
 def add_user():

@@ -18,6 +18,12 @@ class Cursor:
     def lastrowid(self):
         return self.cursor.lastrowid
     
+    def rowcount(self):
+        return self.cursor.rowcount
+    
+    def rollback(self):
+        server.db.connection.rollback()
+    
     def __del__(self):
         server.db.connection.commit()
         self.cursor.close()

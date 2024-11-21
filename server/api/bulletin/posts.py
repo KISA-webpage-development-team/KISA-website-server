@@ -1,10 +1,10 @@
 import flask
 import server
-from .helpers import token_required, count_comments, count_likes
-from .image_handler import handle_imgs, delete_imgs
+from ..helpers import token_required, count_comments, count_likes
+from ..image_handler import handle_imgs, delete_imgs
 
 # POSTS API ------------------------------------------------------------
-# /api/v2/posts
+# /api/v2/bulletin/posts
 @server.application.route("/api/v2/posts/<int:postid>/",
                   methods=['GET'])
 def get_post(postid):

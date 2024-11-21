@@ -1,9 +1,9 @@
 import flask
 import server
-from .helpers import fetch_user_posts, fetch_user_comments, token_required
+from ..helpers import fetch_user_posts, fetch_user_comments, token_required
 
 # Users API ------------------------------------------------------------
-# /api/v2/users
+# /api/v2/credentials/users
 @server.application.route("/api/v2/users/<string:email>/",
                   methods=['GET'])
 @token_required

@@ -1,9 +1,9 @@
 import flask
 import server
-from .helpers import count_comments, count_likes
+from ..helpers import count_comments, count_likes
 
 # BOARDS API ------------------------------------------------------------
-# /api/v2/boards
+# /api/v2/bulletin/boards
 @server.application.route("/api/v2/boards/<string:board_type>/posts/",
                   methods=['GET'])
 def get_posts_by_board_type(board_type):

@@ -142,3 +142,29 @@ def get_child_comments(comment, cursor):
         comment['childComments'] = [dict(child_comment) for child_comment in child_comments]
         for child_comment in comment['childComments']:
             get_child_comments(child_comment, cursor)
+
+def check_orderItems_and_delete(cursor, existing_orderID):
+    # check if orderItems are left for existing order
+    cursor.execute(
+        '''
+        SELECT * FROM orderItem 
+        WHERE parentOrderID=%(parentOrderID)s
+        ''',
+        {
+            'parentOrderID': existing_orderID
+        }
+    )
+    orderItems = cursor.fetchall()
+
+    # if there no longer exists orderItems for a order,
+    # delete the order
+    if not orderItems:
+        cursor.execute(
+            '''
+            DELETE FROM `order` 
+            WHERE orderID=%(orderID)s
+            ''',
+            {
+                'orderID': existing_orderID
+            }
+        )
