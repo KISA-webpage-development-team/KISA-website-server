@@ -5,6 +5,75 @@ from ..helpers import token_required, check_orderItems_and_delete
 # POCHA APIS -----------------------------------------------------------
 # /api/v2/pocha/cart
 
+@server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/', methods=['GET'])
+# @token_required
+def get_cart(email, pochaID):
+    '''
+    Return cart information using session email and pochaID
+    '''
+    # check if order exists
+    cursor = server.model.Cursor()
+    cursor.execute(
+        '''
+        SELECT orderID FROM `order` 
+        WHERE email = %(email)s
+        AND parentPochaID = %(parentPochaID)s
+        AND isPaid = %(isPaid)s
+        ''',
+        {
+            'email': email,
+            'parentPochaID': pochaID,
+            'isPaid': False
+        }
+    )
+    existing_order = cursor.fetchone()
+    
+    # Case 1: order exists
+    if existing_order:
+        # find orderItems associated with the order
+        cursor.execute(
+            '''
+            SELECT quantity, menuID FROM orderItem
+            WHERE parentOrderID = %(parentOrderID)s
+            ''',
+            {
+                'parentOrderID': existing_order["orderID"]
+            }
+        )
+        orderItems = cursor.fetchall()
+
+        # iterate through list of orderItems
+        response = {}
+        for orderItem in orderItems:
+            # menuID key already exists in response dict
+            if orderItem['menuID'] in response:
+                response[orderItem['menuID']]['quantity'] += orderItem['quantity']
+
+            # menuID first encounter
+            else:
+                cursor.execute(
+                    '''
+                    SELECT menuID, nameKor, nameEng, price,
+                    stock, isImmediatePrep, parentPocahID
+                    FROM menu
+                    WHERE menuID = %(menuID)s
+                    ''',
+                    {
+                        'menuID': orderItem['menuID']
+                    }
+                )
+                menuInfo = cursor.fetchone()
+                response[orderItem['menuID']] = {
+                    'menu': menuInfo,
+                    'quantity': orderItem['quantity']
+                }
+        return flask.jsonify(response), 200
+    
+    # Case 2: order does not exists
+    else:
+        # return empty dictionary
+        return flask.jsonify({}), 200
+
 @server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/', methods=['POST', 'PATCH', 'DELETE'])
 # @token_required
 def modify_cart(email, pochaID):
