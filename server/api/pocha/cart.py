@@ -54,7 +54,7 @@ def get_cart(email, pochaID):
                 cursor.execute(
                     '''
                     SELECT menuID, nameKor, nameEng, price,
-                    stock, isImmediatePrep, parentPocahID
+                    stock, isImmediatePrep, parentPochaID
                     FROM menu
                     WHERE menuID = %(menuID)s
                     ''',
