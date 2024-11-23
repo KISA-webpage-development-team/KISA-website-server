@@ -27,3 +27,4 @@ from server.api.pocha.info import get_pocha
 from server.api.pocha.info import get_pocha_menu
 from server.api.pocha.cart import get_cart
 from server.api.pocha.cart import modify_cart
+from server.api.pocha.socket_test import socketio

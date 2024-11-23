@@ -3,6 +3,8 @@
 import flask
 from flask_cors import CORS
 from flask_mysqldb import MySQL
+from flask_socketio import SocketIO
+
 
 # index page texts
 header_text = '''
@@ -23,12 +25,29 @@ db = MySQL(application)
 CORS(application, origins=[
     "https://www.umichkisa.com",
     "http://localhost:3000",
-    "http://localhost:80"
+    "http://localhost:80",
+    "http://localhost",
+    ])
+
+socketio = SocketIO(application, cors_allowed_origins=[
+    "https://www.umichkisa.com",
+    "http://localhost:3000",
+    "http://localhost:80",
+    "http://localhost",
     ])
 
 # add a rule for the index page.
 application.add_url_rule('/', 'index', (lambda: header_text +
     instructions + footer_text))
 
+
+
+
+
 import server.api
 import server.model
+
+
+
+
+

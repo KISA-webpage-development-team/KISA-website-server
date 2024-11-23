@@ -6,6 +6,7 @@
 # Virtual environment
 virt/*
 venv/*
+.venv/*
 
 # Secret key
 secret_key.txt
