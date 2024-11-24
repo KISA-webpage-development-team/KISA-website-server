@@ -1,7 +1,9 @@
 # import argparse
 import argparse
 import os
-from server import application
+from server import application, socketio
+
+
 
 # run the application.
 if __name__ == "__main__":
@@ -13,6 +15,9 @@ if __name__ == "__main__":
         print("local FLASK_ENV set to development")
         print(f"FLASK_ENV: {os.getenv('FLASK_ENV')}")
         application.debug = True
-        application.run(host='0.0.0.0',port=8000)    
+
+        # socket testing
+        socketio.run(application, host='0.0.0.0', port=8000)
+        # application.run(host='0.0.0.0',port=8000)    
     else:
         application.run()
