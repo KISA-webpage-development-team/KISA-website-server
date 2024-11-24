@@ -7,29 +7,6 @@ from collections import defaultdict
 # POCHA APIS -----------------------------------------------------------
 # /api/v2/pocha/dashboard
 
-'''
-    있으면 list of dictionaries 없으면 empty list
-    {
-        pending: [
-            {
-                orderItemID : int,
-                status : string,
-                quantity: int,
-                menu: {               
-                    menuID: number;
-                    nameKor: string;
-                    nameEng: string;
-                    price: number;
-                    stock: number;
-                    isImmediatePrep: boolean;
-                    parentPochaId: number;
-            }
-            }, {}, {}, ...],
-        preparing: { ...  위와 같다. }
-        ready: { ...  위와 같다. }
-    }
-    '''
-
 @server.application.route('/api/v2/pocha/dashboard/<int:pochaID>/', methods=['GET'])
 def get_pocha_orders(pochaID):
     '''
@@ -210,11 +187,15 @@ def put_order_item_status(orderItemID):
     email = cursor.fetchone()['email']
 
     # emit to socket event "status-change-{email}"
-    server.socketio.emit(
+    server.sio.emit(
         f"status-change-{email}", 
         {
             'status': new_status,
             'orderItemID': orderItemID
         }
     )
+
+    return flask.jsonify({
+        'message': f"orderItem {orderItemID} status changed to {new_status}"}
+    ), 200
 
