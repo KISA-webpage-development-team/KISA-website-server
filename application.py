@@ -1,7 +1,7 @@
 # import argparse
 import argparse
 import os
-from server import application, socketio
+from server import application, sio
 
 
 
@@ -17,7 +17,7 @@ if __name__ == "__main__":
         application.debug = True
 
         # socket testing
-        socketio.run(application, host='0.0.0.0', port=8000)
+        sio.run(application, host='0.0.0.0', port=8000)
         # application.run(host='0.0.0.0',port=8000)    
     else:
         application.run()

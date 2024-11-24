@@ -562,8 +562,45 @@ def get_cart_checkout_info(email, pochaID):
             'parentOrderID': orderID
         }
     )
+    orderItems = cursor.fetchall() # 모든 orderItem을 가져온다 
 
-    orderItems = cursor.fetchall()
+    amount = 0.0
+    ageCheckRequired = False
 
+    # fetch price and ageCheckRequired with menuID as fetched orderItems' menuID
+    for orderItem in orderItems:
+        cursor.execute(
+            '''
+            SELECT price, ageCheckRequired FROM menu
+            WHERE menuID = %(menuID)s
+            ''',
+            {
+                'menuID': orderItem['menuID']
+            }
+        )
+        menu_price_ageCheckRequired = cursor.fetchone()
+
+        # add price to total amount
+        amount += menu_price_ageCheckRequired['price'] * orderItem['quantity']
+
+        # check ageCheckRequired from menu table (ageCheckRequired가 False인 경우만 들어가면 됨, 이미 True로 업데이트 됐으면 굳이 갈 필요 x)
+        if not ageCheckRequired:
+            if menu_price_ageCheckRequired['ageCheckRequired']:
+                ageCheckRequired = True
     
-    pass
+    return flask.jsonify({
+        "amount" : amount,
+        "ageCheckRequired" : "true" if ageCheckRequired else "false"
+    }), 200
+
+@server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/pay-result/', methods=['PUT'])
+# @token_required
+def pay_success_fail(email, pochaID):
+    body = flask.request.get_json()
+    result = body['result'] # 'success' | 'failure'
+    # Case 1: payment is successful
+        # change isPaid flag of order to 1
+        # emit on event "order-created"
+        # socket io body is list of added orderItems
+
+    # Case 2: payment has failed

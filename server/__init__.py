@@ -29,7 +29,7 @@ CORS(application, origins=[
     "http://localhost",
     ])
 
-socketio = SocketIO(application, cors_allowed_origins=[
+sio = SocketIO(application, cors_allowed_origins=[
     "https://www.umichkisa.com",
     "http://localhost:3000",
     "http://localhost:80",
