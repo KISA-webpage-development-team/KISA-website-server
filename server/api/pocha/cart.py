@@ -588,6 +588,10 @@ def get_cart_checkout_info(email, pochaID):
             if menu_price_ageCheckRequired['ageCheckRequired']:
                 ageCheckRequired = True
     
+    # return 404 not found when amount is 0, or cart is empty
+    if amount == 0:
+        flask.jsonify({"error": "user cart is empty"}), 404
+
     return flask.jsonify({
         "amount" : amount,
         "ageCheckRequired" : "true" if ageCheckRequired else "false"
