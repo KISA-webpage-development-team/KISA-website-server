@@ -71,28 +71,64 @@ def get_user_orders(email, pochaID):
             response[orderItem['status']].append(orderItem)
 
     return flask.jsonify(response), 200
-
-    '''
-    있으면 list of dictionaries 없으면 empty list
-    {
-        pending: [
-            {
-                orderItemID : int,
-                status : string,
-                quantity: int,
-                menu: {               
-                    menuID: number;
-                    nameKor: string;
-                    nameEng: string;
-                    price: number;
-                    stock: number;
-                    isImmediatePrep: boolean;
-                    parentPochaId: number;
-            }
-            }, {}, {}, ...],
-        preparing: { ...  위와 같다. }
-        ready: { ...  위와 같다. }
-    }
-    '''
     
+@server.application.route('/api/v2/pocha/order/<string:email>/<int:pochaID>/closed/', methods=['GET'])
+# @token_required
+def get_user_closed_orders(email, pochaID):
+    '''
+    Fetch user's paid orders by email and pochaID
+    '''
+    # check if paid order exists 
+    cursor = server.model.Cursor()
+    cursor.execute(
+        """
+        SELECT orderID FROM `order`
+        WHERE email = %(email)s 
+        AND parentPochaID = %(parentPochaID)s 
+        AND isPaid = %(isPaid)s
+        """,
+        {
+            'email': email,
+            'parentPochaID': pochaID,
+            'isPaid': True
+        }
+    )
+    paid_orders = cursor.fetchall()
 
+    response = {'closed' : []}
+
+    # fetch all orderItems with orderID
+    for paid_order in paid_orders:
+        cursor.execute(
+            """
+            SELECT orderItemID, status, quantity, menuID
+            FROM orderItem
+            WHERE parentOrderID = %(parentOrderID)s 
+            AND status = %(status)s
+            """,
+            {
+                'parentOrderID': paid_order['orderID'],
+                'status': 'closed'
+            }
+        )
+        orderItems = cursor.fetchall()
+
+        # append into response 
+        for orderItem in orderItems:
+            # fetch menu information using menuID first
+            cursor.execute(
+                """
+                SELECT * FROM menu
+                WHERE menuID = %(menuID)s 
+                """,
+                {
+                    'menuID': orderItem['menuID']
+                }
+            )
+            menu_info = cursor.fetchone()
+            del orderItem["menuID"]
+            orderItem['menu'] = menu_info
+
+            response['closed'].append(orderItem)
+            
+    return flask.jsonify(response), 200
