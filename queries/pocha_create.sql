@@ -13,8 +13,9 @@ CREATE TABLE ebdb.menu (
     category VARCHAR(32) NOT NULL,
     price DOUBLE(5,2) NOT NULL,
     stock INT NOT NULL,
-    isImmediatePrep TINYINT(1) NOT NULL,
+    isImmediatePrep TINYINT NOT NULL,
     parentPochaID INT NOT NULL,
+    ageCheckRequired TINYINT NOT NULL DEFAULT 0,
     FOREIGN KEY (parentPochaID) REFERENCES ebdb.pocha(pochaID) ON DELETE CASCADE
 );
 
