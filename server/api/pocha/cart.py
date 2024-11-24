@@ -473,62 +473,6 @@ def modify_cart(email, pochaID):
     else:
         return flask.jsonify({"error": "invalid quantity"}), 400
 
-@server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/check-stock/', methods=['GET'])
-# @token_required
-def check_cart_stock(email, pochaID):
-    '''
-    Check if all items in cart is in stock.
-    '''
-    # fetch order with user email and pochaID where isPaid is False
-    cursor = server.model.Cursor()
-    cursor.execute(
-        """
-        SELECT orderID FROM `order`
-        WHERE parentPochaID = %(parentPochaID)s
-        AND email = %(email)s
-        AND isPaid = %(isPaid)s
-        """,
-        {
-            'parentPochaID': pochaID,
-            'email': email,
-            'isPaid': False
-        }
-    )
-    order = cursor.fetchone()
-
-    # fetch all orderItems with orderID
-    cursor.execute(
-        """
-        SELECT quantity, menuID FROM orderItem
-        WHERE parentOrderID = %(parentOrderID)s
-        """,
-        {
-            'parentOrderID': order['orderID']
-        }
-    )
-    orderItems = cursor.fetchall()
-    
-    # construct dictionary for counting quantity by menu
-    menu_quantity = defaultdict(int)
-    for orderItem in orderItems:
-        menu_quantity[orderItem['menuID']] += orderItem['quantity']
-
-    # check if stock is sufficient for each orderItem
-    for menu in menu_quantity:
-        cursor.execute(
-            """
-            SELECT stock FROM menu
-            WHERE menuID = %(menuID)s
-            """,
-            {
-                'menuID': int(menu)
-            }
-        )
-        stock = int(cursor.fetchone()['stock'])
-        if stock < menu_quantity[menu]:
-            return flask.jsonify({"isStocked" : False}), 200
-    return flask.jsonify({"isStocked" : True}), 200
-
 @server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/checkout-info/', methods=['GET'])
 # @token_required
 def get_cart_checkout_info(email, pochaID):
@@ -596,15 +540,3 @@ def get_cart_checkout_info(email, pochaID):
         "amount" : amount,
         "ageCheckRequired" : "true" if ageCheckRequired else "false"
     }), 200
-
-@server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/pay-result/', methods=['PUT'])
-# @token_required
-def pay_success_fail(email, pochaID):
-    body = flask.request.get_json()
-    result = body['result'] # 'success' | 'failure'
-    # Case 1: payment is successful
-        # change isPaid flag of order to 1
-        # emit on event "order-created"
-        # socket io body is list of added orderItems
-
-    # Case 2: payment has failed
