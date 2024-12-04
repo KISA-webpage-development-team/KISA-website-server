@@ -7,13 +7,13 @@ from collections import defaultdict
 # POCHA APIS -----------------------------------------------------------
 # /api/v2/pocha/payment
 
-@server.application.route('/api/v2/pocha/payment/<string:email>/<int:pochaID>/check-stock/', methods=['GET'])
+@server.application.route('/api/v2/pocha/payment/<string:email>/<int:pochaID>/check-stock/', methods=['PUT'])
 # @token_required
-def check_cart_stock(email, pochaID):
+def reserve_cart_stock(email, pochaID):
     '''
-    Check if all items in cart is in stock.
+    Check if all items in cart is in stock and if so, reserve them.
     '''
-    # fetch order with user email and pochaID where isPaid is False
+    # fetch cart of user
     cursor = server.model.Cursor()
     cursor.execute(
         """
@@ -41,25 +41,29 @@ def check_cart_stock(email, pochaID):
         }
     )
     orderItems = cursor.fetchall()
-    
-    # construct dictionary for counting quantity by menu
-    menu_quantity = defaultdict(int)
-    for orderItem in orderItems:
-        menu_quantity[orderItem['menuID']] += orderItem['quantity']
 
-    # check if stock is sufficient for each orderItem
-    for menu in menu_quantity:
+    # count quantity of each menuID
+    menuIDtoQuantity = defaultdict(int)
+    for orderItem in orderItems:
+        menuIDtoQuantity[orderItem['menuID']] += orderItem['quantity']
+
+    # subtract quantity from stock, but conditionally
+    for menuID in menuIDtoQuantity:
         cursor.execute(
             """
-            SELECT stock FROM menu
+            UPDATE menu
+            SET stock = stock - %(quantity)s
             WHERE menuID = %(menuID)s
+            AND stock >= %(quantity)s
             """,
             {
-                'menuID': int(menu)
+                'quantity': menuIDtoQuantity[menuID],
+                'menuID': menuID
             }
         )
-        stock = int(cursor.fetchone()['stock'])
-        if stock < menu_quantity[menu]:
+        # rollback transaction and return failure if there is not enough stock
+        if not cursor.rowcount():
+            cursor.rollback()
             return flask.jsonify({"isStocked" : False}), 200
     return flask.jsonify({"isStocked" : True}), 200
 
@@ -70,7 +74,7 @@ def pay_success_fail(email, pochaID):
     result = body['result'] # 'success' | 'failure'
     # Case 1: payment is successful
     if result == 'success':
-        # fetch card of user with email and pochaID
+        # fetch cart of user
         cursor = server.model.Cursor()
         cursor.execute(
             """

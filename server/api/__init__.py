@@ -33,5 +33,5 @@ from server.api.pocha.cart import get_cart_checkout_info
 from server.api.pocha.dashboard import get_pocha_orders
 from server.api.pocha.dashboard import get_pocha_closed_orders
 from server.api.pocha.dashboard import put_order_item_status
-from server.api.pocha.payment import check_cart_stock
+from server.api.pocha.payment import reserve_cart_stock
 from server.api.pocha.payment import pay_success_fail
