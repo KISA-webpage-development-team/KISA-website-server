@@ -132,12 +132,9 @@ def pay_success_fail(email, pochaID):
         )
 
         # emit on event "order-created"
-        server.sio.emit('order-created', to_checkout)
+        server.sio.emit('order-created', {"newOrderItems": to_checkout})
 
-        return flask.jsonify({
-            "message": "success",
-            "order": to_checkout
-            }), 200
+        return flask.jsonify({"message": "success",}), 200
 
     # Case 2: payment has failed
     else:
