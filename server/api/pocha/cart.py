@@ -149,6 +149,29 @@ def modify_cart(email, pochaID):
 
     # Case 1: quantity is a positive value (PATCH, POST)
     if quantity > 0:
+        # soft stock check
+        cursor.execute(
+            """
+            SELECT stock FROM menu
+            WHERE menuID = %(menuID)s
+            AND stock >= %(quantity)s
+            """,
+            {
+                'menuID': menuID,
+                'quantity': quantity
+            }
+        )
+        isStocked = cursor.fetchone()
+        if not isStocked:
+            return flask.jsonify(
+                {
+                    "isStocked": False,
+                    "message": (
+                        f"menu with menuID: {menuID} is out of stock"
+                    )
+                }
+            ), 202
+
         # Case 1-1: cart is empty at the moment
         if not existing_order:
             # create order row
@@ -184,10 +207,11 @@ def modify_cart(email, pochaID):
                     )
                 return flask.jsonify(
                     {
+                        "isStocked": True,
                         "message": (
-                            f"order with orderID {newOrderID} created, and\n"
-                            f"{quantity} rows of menuID: {menuID} successfully\n"
-                            "added to cart."
+                        f"order with orderID {newOrderID} created, and\n"
+                        f"{quantity} rows of menuID: {menuID} successfully\n"
+                        "added to cart."
                         )
                     }
                 ), 201
@@ -210,12 +234,13 @@ def modify_cart(email, pochaID):
                 )
                 return flask.jsonify(
                     {
-                        "message": f"""
-                        order with orderID {newOrderID} created, and 
-                        orderItems with quantity: {quantity} 
-                        with menuID: {menuID} 
-                        successfully added to cart.
-                        """
+                        "isStocked": True,
+                        "message": (
+                        f"order with orderID {newOrderID} created, and "
+                        f"orderItems with quantity: {quantity} "
+                        f"with menuID: {menuID} "
+                        f"successfully added to cart."
+                        )
                     }
                 ), 201
 
@@ -240,10 +265,11 @@ def modify_cart(email, pochaID):
                     )
                 return flask.jsonify(
                     {
-                        "message": f"""
-                        {quantity} rows of menuID: {menuID} successfully
-                        added to order with orderID: {existing_order['orderID']}
-                        """
+                        "isStocked": True,
+                        "message": (
+                        f"{quantity} rows of menuID: {menuID} successfully "
+                        f"added to order with orderID: {existing_order['orderID']}"
+                        )
                     }
                 ), 201
         
@@ -284,12 +310,13 @@ def modify_cart(email, pochaID):
                 # respond with success message
                 return flask.jsonify(
                     {
-                        "message": f"""
-                        orderItem with quantity: {quantity} 
-                        with menuID: {menuID} 
-                        successfully added to order 
-                        with orderID: {existing_order['orderID']}
-                        """
+                        "isStocked": True,
+                        "message": (
+                        f"orderItem with quantity: {quantity} "
+                        f"with menuID: {menuID} "
+                        f"successfully added to order "
+                        f"with orderID: {existing_order['orderID']}"
+                        )
                     }
                 ), 201
     
@@ -322,11 +349,11 @@ def modify_cart(email, pochaID):
                     # return error message
                     return flask.jsonify(
                         {
-                            "error": f"""
-                            1 row expected to be deleted, but
-                            no row deleted, check if there is a menuItem
-                            with pending status, where its parentOrder is not paid yet
-                            """
+                            "error": (
+                            "1 row expected to be deleted, but "
+                            "no row deleted, check if there is a menuItem "
+                            "with pending status, where its parentOrder is not paid yet"
+                            )
                         }
                     ), 424
                 
@@ -337,10 +364,11 @@ def modify_cart(email, pochaID):
                 # respond with success message
                 return flask.jsonify(
                     {
-                        "message": f"""
-                        1 orderItem successfully deleted from 
-                        order with orderID: {existing_order['orderID']}
-                        """
+                        "isStocked": True,
+                        "message": (
+                        "1 orderItem successfully deleted from "
+                        f"order with orderID: {existing_order['orderID']}"
+                        )
                     }
                 ), 204
 
@@ -368,10 +396,10 @@ def modify_cart(email, pochaID):
                     # return error message
                     return flask.jsonify(
                         {
-                            "error": f"""
-                            {-1 * quantity} rows expected to be deleted, but
-                            {deleted_rows} deleted
-                            """
+                            "error": (
+                            f"{-1 * quantity} rows expected to be deleted, but "
+                            f"{deleted_rows} deleted"
+                            )
                         }
                     ), 424
                 
@@ -381,10 +409,11 @@ def modify_cart(email, pochaID):
                 
                 return flask.jsonify(
                     {
-                        "message": f"""
-                        {-1 * quantity} orderItem(s) successfully deleted from 
-                        order with orderID: {existing_order['orderID']}
-                        """
+                        "isStocked": True,
+                        "message": (
+                        f"{-1 * quantity} orderItem(s) successfully deleted from "
+                        f"order with orderID: {existing_order['orderID']}"
+                        )
                     }
                 ), 204
 
@@ -416,11 +445,12 @@ def modify_cart(email, pochaID):
 
                 return flask.jsonify(
                     {
-                        "message": f"""
-                        {-1 * quantity} isImmediatePrep orderItem(s) 
-                        successfully deducted from 
-                        order with orderID: {existing_order['orderID']}
-                        """
+                        "isStocked": True,
+                        "message": (
+                        f"{-1 * quantity} isImmediatePrep orderItem(s) "
+                        "successfully deducted from "
+                        f"order with orderID: {existing_order['orderID']}"
+                        )
                     }
                 ), 204
             
@@ -448,11 +478,11 @@ def modify_cart(email, pochaID):
                     # return error message
                     return flask.jsonify(
                         {
-                            "error": f"""
-                            1 isImmediatePrep row expected to be deleted, but 
-                            no row deleted, check if the quantity to delete 
-                            (negative value) is correct
-                            """
+                            "error": (
+                            "1 isImmediatePrep row expected to be deleted, but "
+                            "no row deleted, check if the quantity to delete "
+                            "(negative value) is correct"
+                            )
                         }
                     ), 424
                 
@@ -462,6 +492,7 @@ def modify_cart(email, pochaID):
                 
                 return flask.jsonify(
                     {
+                        "isStocked": True,
                         "message": (
                             f"{-1 * quantity} isImmediatePrep orderItem(s) "
                             f"successfully deducted from "

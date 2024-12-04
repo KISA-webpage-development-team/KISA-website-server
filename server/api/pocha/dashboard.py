@@ -199,3 +199,31 @@ def put_order_item_status(orderItemID):
         'message': f"orderItem {orderItemID} status changed to {new_status}"}
     ), 200
 
+@server.application.route('/api/v2/pocha/dashboard/change-stock/', methods=['PUT'])
+def put_menu_stock():
+    '''
+    Change stock quantity of menu
+    '''
+    # fetch body from request
+    body = flask.request.get_json()
+
+    # initialize variables from body
+    menuID = body["menuID"]
+    quantity = body["quantity"]
+    
+    # change stock quantity of menu
+    cursor = server.model.Cursor()
+    cursor.execute(
+        """
+        UPDATE menu
+        SET stock = %(quantity)s
+        WHERE menuID = %(menuID)s
+        """,
+        {
+            'quantity': quantity,
+            'menuID': menuID
+        }
+    )
+
+    # return success message
+    return flask.jsonify({"message": "stock quantity changed"}), 200

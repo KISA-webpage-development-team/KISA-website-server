@@ -63,8 +63,28 @@ def reserve_cart_stock(email, pochaID):
         )
         # rollback transaction and return failure if there is not enough stock
         if not cursor.rowcount():
+            # identify which menu item is out of stock
+            cursor.execute(
+                """
+                SELECT nameKor, nameEng FROM menu
+                WHERE menuID = %(menuID)s
+                """,
+                {
+                    'menuID': menuID
+                }
+            )
+            out_of_stock = cursor.fetchone()
+
+            # rollback transaction
             cursor.rollback()
-            return flask.jsonify({"isStocked" : False}), 200
+
+            # return failure message with menu out of stock
+            return flask.jsonify({
+                "isStocked" : False,
+                "outOfStockMenu": out_of_stock
+                }), 200
+    
+    # return success message
     return flask.jsonify({"isStocked" : True}), 200
 
 @server.application.route('/api/v2/pocha/payment/<string:email>/<int:pochaID>/pay-result/', methods=['PUT'])
