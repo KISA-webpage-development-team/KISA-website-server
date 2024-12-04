@@ -70,7 +70,7 @@ def pay_success_fail(email, pochaID):
     result = body['result'] # 'success' | 'failure'
     # Case 1: payment is successful
     if result == 'success':
-        # fetch order with user email and pochaID where isPaid is False
+        # fetch card of user with email and pochaID
         cursor = server.model.Cursor()
         cursor.execute(
             """
@@ -90,7 +90,8 @@ def pay_success_fail(email, pochaID):
         # fetch orderItems associated to order first
         cursor.execute(
             """
-            SELECT * FROM orderItem
+            SELECT orderItemID, status, menuID, quantity
+            FROM orderItem
             WHERE parentOrderID = %(parentOrderID)s
             """,
             {
@@ -98,6 +99,20 @@ def pay_success_fail(email, pochaID):
             }
         )
         to_checkout = cursor.fetchall()
+
+        # iterate through orderItems to add menu item to response
+        for orderItem in to_checkout:
+            cursor.execute(
+                """
+                SELECT * FROM menu
+                WHERE menuID = %(menuID)s
+                """,
+                {
+                    'menuID': orderItem['menuID']
+                }
+            )
+            orderItem['menu'] = cursor.fetchone()
+            del orderItem['menuID']
 
         # change isPaid flag of order to 1
         cursor.execute(
@@ -119,7 +134,10 @@ def pay_success_fail(email, pochaID):
         # emit on event "order-created"
         server.sio.emit('order-created', to_checkout)
 
-        return flask.jsonify({"message": "success"}), 200
+        return flask.jsonify({
+            "message": "success",
+            "order": to_checkout
+            }), 200
 
     # Case 2: payment has failed
     else:
