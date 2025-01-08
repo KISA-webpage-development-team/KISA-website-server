@@ -23,6 +23,7 @@ application = flask.Flask(__name__)
 application.config.from_object('server.config')
 db = MySQL(application)
 CORS(application, origins=[
+    "https://kisa-website-client-git-dev-umich-kisas-projects.vercel.app/",
     "https://www.umichkisa.com",
     "http://localhost:3000",
     "http://localhost:80",
@@ -30,6 +31,7 @@ CORS(application, origins=[
     ])
 
 sio = SocketIO(application, cors_allowed_origins=[
+    "https://kisa-website-client-git-dev-umich-kisas-projects.vercel.app/",
     "https://www.umichkisa.com",
     "http://localhost:3000",
     "http://localhost:80",

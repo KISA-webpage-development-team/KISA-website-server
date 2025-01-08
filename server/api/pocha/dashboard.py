@@ -16,7 +16,7 @@ def get_pocha_orders(pochaID):
     cursor = server.model.Cursor()
     cursor.execute(
         """
-        SELECT orderID FROM `order`
+        SELECT email, orderID FROM `order`
         WHERE parentPochaID = %(parentPochaID)s 
         AND isPaid = %(isPaid)s
         """,
@@ -65,7 +65,23 @@ def get_pocha_orders(pochaID):
             del orderItem["menuID"]
             orderItem['menu'] = menu_info
 
+            # fetch user information and append into orderItem
+            cursor.execute(
+                """
+                SELECT fullname FROM users
+                WHERE email = %(email)s
+                """,
+                {
+                    'email': active_order['email']
+                }
+            )
+            orderItemFullname = cursor.fetchone()['fullname']
+            orderItem['ordererName'] = orderItemFullname
+            orderItem['ordererEmail'] = active_order['email']
+
             response[orderItem['status']].append(orderItem)
+
+            print(response)
 
     return flask.jsonify(response), 200
 
