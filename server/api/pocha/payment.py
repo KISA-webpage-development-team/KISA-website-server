@@ -138,6 +138,20 @@ def pay_success_fail(email, pochaID):
             orderItem['menu'] = cursor.fetchone()
             del orderItem['menuID']
 
+            # fetch user information and append into orderItem
+            cursor.execute(
+                """
+                SELECT fullname FROM users
+                WHERE email = %(email)s
+                """,
+                {
+                    'email': email
+                }
+            )
+            orderItemFullname = cursor.fetchone()['fullname']
+            orderItem['ordererName'] = orderItemFullname
+            orderItem['ordererEmail'] = email
+
         # change isPaid flag of order to 1
         cursor.execute(
             """
