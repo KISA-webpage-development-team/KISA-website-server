@@ -73,8 +73,6 @@ def get_orderItems_by_pochaID(pochaID):
 
     orderItems = []
 
-# [ {‘orderId’ : 1, ‘email’ : ‘asdf@umich.edu’ } , … , {‘orderId’: 3, ‘email’ : ‘adf@umich.edu’} ]
-
     #Fetch quantity and menuID of paid orderItems from orderItem table 
     for paid_order in paid_orders:
         cursor.execute(
@@ -89,7 +87,6 @@ def get_orderItems_by_pochaID(pochaID):
 
         orderItems_by_user = cursor.fetchall()
 
-        # [{'quantity' : 2, 'menuID' : 2} , {'quantity' : 4, 'menuID' : 3} , ... ]
         # Fetch user's name with an email 
         cursor.execute(
             '''
@@ -103,7 +100,7 @@ def get_orderItems_by_pochaID(pochaID):
 
         name = cursor.fetchone()
 
-        # Add user's email, name, and menu information to the dictionary
+        # Add user's email, name, and menu information to the dictionary        
         for orderItem_by_user in orderItems_by_user:
             orderItem_by_user['email'] = paid_order['email']
             orderItem_by_user['name'] = name
@@ -123,8 +120,61 @@ def get_orderItems_by_pochaID(pochaID):
             orderItem_by_user.update(menu_info)
 
         
-        # [{'quantity' : 2, 'email' : 'asf@umich.edu', 'name' : '신윤서' , 'nameKor' = '족발' , .. ,} , {'quantity' : 4, 'menuID' : 3} , ... ]
         orderItems += orderItems_by_user
     
     return flask.jsonify(orderItems), 200
+
+@server.application.route('/api/v2/pocha/accounting/<int:pochaID>/', methods=['GET'])
+def get_total_income(pochaID):
+    cursor = server.model.Cursor()
+
+    #Fetch all paid orders of a particular pocha from order table 
+    cursor.execute(
+        '''
+        SELECT orderID FROM order
+        WHERE parentPochaID = %(parentPochaID)s AND isPaid = %(isPaid)s
+        ''',
+        {
+            'parentPochaID' : pochaID,
+            'isPaid' : True
+        }
+    )
+
+    paid_orders = cursor.fetchall()
+
+    # Fetch all menu's prices of a particular pocha from menu table
+    cursor.execute(
+        '''
+        SELECT menuID, price FROM menu
+        WHERE parentPochaID = %(parentPochaID)s
+        ''',
+        {
+            'parentPochaID' : pochaID
+        }
+    )
+
+    menus = cursor.fetchall()
+    price_dict = {}
+    for menu in menus:
+        price_dict[menu['menuID']] = menu['price']
+
+    # Sum up individual orderItem's final price 
+    total_income = 0
+    for paid_order in paid_orders:
+        cursor.execute(
+            '''
+            SELECT quantity, menuID FROM orderItem
+            WHERE parentOrderID = %(parentOrderID)s
+            ''',
+            {
+                'parentOrderID' : paid_order['orderID']
+            }
+        )
+        orderItems = cursor.fetchall()
+
+        for orderItem in orderItems:
+            total_income += orderItem['quantity'] * price_dict[orderItem['menuID']]
+
+    return flask.jsonify(total_income), 200
+
     
