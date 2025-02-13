@@ -13,3 +13,4 @@ venv/*
 
 # Python cache directories
 __pycache__/
+.DS_Store
