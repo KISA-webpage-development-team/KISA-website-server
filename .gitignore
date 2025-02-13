@@ -8,8 +8,10 @@ virt/*
 venv/*
 .venv/*
 
-# Secret key
+# Secrets
 secret_key.txt
+config.py
+.env
 
 # Python cache directories
 __pycache__/

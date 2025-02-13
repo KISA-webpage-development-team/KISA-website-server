@@ -24,3 +24,4 @@ mysql-connector-python
 mysqlclient
 wheel
 boto3
+python-dotenv==1.0.1
