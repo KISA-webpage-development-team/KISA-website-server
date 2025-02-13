@@ -9,8 +9,6 @@ venv/*
 .venv/*
 
 # Secrets
-secret_key.txt
-config.py
 .env
 
 # Python cache directories
