@@ -34,7 +34,11 @@ class Cursor:
 
 class AWSClient:
     def __init__(self):
-        self.s3 = boto3.client('s3', config=Config(signature_version='s3v4'))
+        self.s3 = boto3.client(
+            's3',
+            region_name=os.getenv("AWS_REGION", "us-east-2"),
+            config=Config(signature_version='s3v4')
+        )
         self.cloudfront = boto3.client('cloudfront')
 
     def generate_presigned_url(self, intention, file_key, file_type):
