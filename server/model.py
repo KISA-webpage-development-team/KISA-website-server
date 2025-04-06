@@ -4,6 +4,7 @@ import MySQLdb.cursors
 import boto3
 import os
 import datetime
+import json
 from botocore.config import Config
 
 class Cursor:
@@ -40,6 +41,17 @@ class AWSClient:
             config=Config(signature_version='s3v4')
         )
         self.cloudfront = boto3.client('cloudfront')
+        self.sns = boto3.client('sns')
+        self.platformApplicationArn = {
+            "production": {
+                "arn": "arn:aws:sns:us-east-2:220688543567:app/APNS/kisa-mobile-sns",
+                "messagekey": "APNS"
+            },
+            "development": {
+                "arn": "arn:aws:sns:us-east-2:220688543567:app/APNS_SANDBOX/kisa-mobile-sns-dev",
+                "messagekey": "APNS_SANDBOX"
+            }
+        }
 
     def generate_presigned_url(self, intention, file_key, file_type):
         params = {
@@ -91,3 +103,48 @@ class AWSClient:
         self.create_invalidation(keys)
         for key in keys:
             self.delete_object(key)
+
+    def create_endpoint(self, token, email):
+        return self.sns.create_platform_endpoint(
+            PlatformApplicationArn=self.platformApplicationArn[os.getenv("FLASK_ENV")]["arn"],
+            Token=token,
+            CustomUserData=email
+        )
+    
+    def send_notification(self, endpoint_arn, subject, title=None, body=None, silent=False, data=None):
+        # 'APNS' for production and 'APNS_SANDBOX' for development
+        messagekey = self.platformApplicationArn[os.getenv("FLASK_ENV")]["messagekey"]
+        
+        # Silent notification with custom data
+        if silent and data:
+            apns_payload = {
+                "aps": {
+                    "content-available": 1
+                },
+                "custom_data": data
+            }
+            
+        # Regular push notification
+        else:
+            apns_payload = {
+                "aps": {
+                    "alert": {
+                        "title": title or subject,
+                        "body": body or "No message provided"
+                    },
+                    "badge": 1,
+                    "sound": "default"
+                }
+            }
+
+        message_payload = {
+            messagekey: json.dumps(apns_payload),
+            "default": body or subject or "Update available"
+        }
+
+        self.sns.publish(
+            TargetArn=endpoint_arn,
+            Subject=subject,
+            Message=json.dumps(message_payload),
+            MessageStructure='json'
+        )

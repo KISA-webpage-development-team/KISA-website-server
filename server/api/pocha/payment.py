@@ -1,6 +1,7 @@
 import flask
 import server
-from ..helpers import token_required, check_orderItems_and_delete
+from ..helpers import token_required
+from .notification import send_notification
 from collections import defaultdict
 
 
