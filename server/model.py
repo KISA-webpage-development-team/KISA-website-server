@@ -41,7 +41,10 @@ class AWSClient:
             config=Config(signature_version='s3v4')
         )
         self.cloudfront = boto3.client('cloudfront')
-        self.sns = boto3.client('sns')
+        self.sns = boto3.client(
+            'sns',
+            region_name=os.getenv("AWS_REGION", "us-east-2")
+        )
         self.platformApplicationArn = {
             "production": {
                 "arn": "arn:aws:sns:us-east-2:220688543567:app/APNS/kisa-mobile-sns",
