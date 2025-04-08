@@ -18,10 +18,7 @@ def check_existing_user(email):
    )
    user = cursor.fetchone()
 
-   print("[LOG-AUTH] checking existance of user: ", email)
-
    if user:
-      print("[LOG-AUTH] user already exists: ", email)
       return flask.jsonify({
          "message": "requested user exists",
          "fullname": user['fullname']
@@ -29,7 +26,6 @@ def check_existing_user(email):
 
    # temporary logic for app evaluation
    else:
-      print("[LOG-AUTH] user does not exist: ", email)
       # add the user, regardless of email format
       cursor.execute(
          '''
@@ -42,8 +38,6 @@ def check_existing_user(email):
       )
       user = cursor.fetchone()
 
-      print("[LOG-AUTH] test user is made for: ", user['email'])
-      
       return flask.jsonify({
          "message": "requested user exists",
          "fullname": user['fullname']
