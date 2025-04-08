@@ -92,8 +92,6 @@ def register_token():
             }, 200
         )
     
-# @server.application.route('/api/v2/pocha/notification/test/', methods=['POST'])
-# @token_required
 def send_notification(**kwargs):
     """
     :param kwargs: email, subject, title, body, silent, data
@@ -108,16 +106,19 @@ def send_notification(**kwargs):
             'email': kwargs['email']
         }
     )
-    endpoint_arn = cursor.fetchone()['endpointARN']
+    endpoint_exists = cursor.fetchone()
 
-    client = server.model.AWSClient()
-    client.send_notification(
-        endpoint_arn,
-        subject=kwargs['subject'],
-        title=kwargs.get('title'), # only for push notifications
-        body=kwargs.get('body'), # only for silent notifications
-        silent=kwargs.get('silent'), # denotes if the notification is silent
-        data=kwargs.get('data') # only for silent notifications
-    )
-
-    return flask.jsonify({'message': 'Test notification sent successfully.'}, 200)
+    if endpoint_exists:
+        endpoint_arn = endpoint_exists['endpointARN']
+        client = server.model.AWSClient()
+        client.send_notification(
+            endpoint_arn,
+            subject=kwargs['subject'],
+            title=kwargs.get('title'), # only for push notifications
+            body=kwargs.get('body'), # only for silent notifications
+            silent=kwargs.get('silent'), # denotes if the notification is silent
+            data=kwargs.get('data') # only for silent notifications
+        )
+        return flask.jsonify({'message': 'Test notification sent successfully.'}, 200)
+    else:
+        return flask.jsonify({'error': 'Endpoint ARN not found for the user.'}, 404)
