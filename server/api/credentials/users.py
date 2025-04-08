@@ -35,12 +35,11 @@ def get_user(email):
                 'email': email
             }
         )
-        user = cursor.fetchone()
         print("[LOG-GET-USER] fake test user made for: ", email)
         # render context
-        user['url'] = flask.request.url
-        context = user
-        return flask.jsonify(**context), 200
+        return flask.jsonify({
+            "message": "requested user exists",
+        }), 200
 
     # render context
     user['url'] = flask.request.url
