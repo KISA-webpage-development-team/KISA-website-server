@@ -42,10 +42,6 @@ sio = SocketIO(application, cors_allowed_origins=[
 application.add_url_rule('/', 'index', (lambda: header_text +
     instructions + footer_text))
 
-
-
-
-
 import server.api
 import server.model
 

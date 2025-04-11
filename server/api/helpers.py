@@ -1,7 +1,10 @@
 import flask
 import jwt
 import server
+import os
+import re
 from functools import wraps
+from urllib.parse import unquote
 
 def token_required(func):
     @wraps(func)
@@ -9,15 +12,14 @@ def token_required(func):
         token = flask.request.headers.get('Authorization')
         if not token:
             return flask.jsonify({'message': 'Missing token'}), 401
-        with open('secret_key.txt', 'r') as file:
-            secret_key = file.read()
-            try:
-                token = token.split(' ')[1]
-                jwt.decode(token, secret_key, algorithms='HS256')
-                return func(*args, **kwargs)
-            except Exception as error:
-                print(error)
-                return flask.jsonify({'error': 'Decode failed'}), 401
+        secret_key = os.getenv("SECRET_KEY")
+        try:
+            token = token.split(' ')[1]
+            jwt.decode(token, secret_key, algorithms='HS256')
+            return func(*args, **kwargs)
+        except Exception as error:
+            print(error)
+            return flask.jsonify({'error': 'Decode failed'}), 401
     return token_test
 
 def count_comments(cursor, post):
@@ -168,3 +170,49 @@ def check_orderItems_and_delete(cursor, existing_orderID):
                 'orderID': existing_orderID
             }
         )
+
+def extract_temp_keys(text):
+    # Temporary images for the editor starts with s3 URL
+    base_url = f"https://{os.getenv('S3_BUCKET_NAME')}.s3.amazonaws.com"
+
+    # Regex pattern to match the full S3 key before any query parameters
+    pattern = rf'<img[^>]+src=["\']{re.escape(base_url)}/([^"\']+?)(?:\?[^"\']*)?["\']'
+    
+    # Find all matches
+    matches = re.findall(pattern, text)
+
+    # Decode URL-encoded characters in matches
+    matches = [unquote(match) for match in matches]
+    
+    return matches
+
+def extract_uploaded_keys(text):
+    # Images that are already uploaded starts with CloudFront URL
+    base_url = os.getenv('CLOUDFRONT_URL')
+
+    # Regex pattern to extract the image key, stopping at query params if any
+    pattern = rf'<img[^>]+src=["\']{re.escape(base_url)}/([^"\']+?)(?:\?[^"\']*)?["\']'
+
+    # Find all matches (keys)
+    matches = re.findall(pattern, text)
+
+    # Decode URL-encoded characters in matches
+    matches = [unquote(match) for match in matches]
+
+    return matches
+
+def replace_temp_srcs(text, new_urls):
+    # Temporary object srcs are stored in s3
+    base_url = f"https://{os.getenv('S3_BUCKET_NAME')}.s3.amazonaws.com"
+
+    # Regex pattern to match the full `src="..."` value
+    pattern = rf'<img[^>]+src=["\']({re.escape(base_url)}/[^"\']+)["\']'
+
+    # Find all existing image src URLs
+    matches = re.findall(pattern, text)
+
+    # Replace each matched src with the corresponding new URL
+    for old_src, new_src in zip(matches, new_urls):
+        text = text.replace(old_src, new_src)
+
+    return text

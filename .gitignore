@@ -8,8 +8,9 @@ virt/*
 venv/*
 .venv/*
 
-# Secret key
-secret_key.txt
+# Secrets
+.env
 
 # Python cache directories
 __pycache__/
+.DS_Store

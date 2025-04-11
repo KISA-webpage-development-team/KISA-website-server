@@ -15,9 +15,6 @@ if __name__ == "__main__":
         print("local FLASK_ENV set to development")
         print(f"FLASK_ENV: {os.getenv('FLASK_ENV')}")
         application.debug = True
-
-        # socket testing
         sio.run(application, host='0.0.0.0', port=8000)
-        # application.run(host='0.0.0.0',port=8000)    
     else:
         application.run()

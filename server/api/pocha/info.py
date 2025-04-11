@@ -47,7 +47,7 @@ def get_pocha():
         return flask.jsonify(pocharow), 200
     
 @server.application.route('/api/v2/pocha/menu/<int:pochaid>/', methods=['GET'])
-@token_required
+# @token_required
 def get_pocha_menu(pochaid):
     # error handling: there is no pocha with the given pochaid
     cursor = server.model.Cursor()

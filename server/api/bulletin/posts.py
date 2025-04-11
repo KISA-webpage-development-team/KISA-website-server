@@ -1,7 +1,7 @@
 import flask
 import server
 from ..helpers import token_required, count_comments, count_likes
-from ..image_handler import handle_imgs, delete_imgs
+from ..images.image_handler import upload_imgs, update_imgs, delete_imgs
 
 # POSTS API ------------------------------------------------------------
 # /api/v2/bulletin/posts
@@ -39,26 +39,37 @@ def add_post():
     # Fetch body from request
     body = flask.request.get_json()
 
-    # Fetch next postid by inserting a dummy post
+    # Insert dummy post into database; text is empty
     cursor = server.model.Cursor()
     cursor.execute(
-        "INSERT INTO posts (type, email, title, text, isAnnouncement, fullname, readCount, anonymous) "
-        "VALUES (%(type)s, %(email)s, %(title)s, %(text)s, %(isAnnouncement)s, %(fullname)s, %(readCount)s, %(anonymous)s)", 
+        '''
+        INSERT INTO posts (type, email, title, text, isAnnouncement, fullname, readCount, anonymous)
+        VALUES ( %(type)s, %(email)s, %(title)s, %(text)s, %(isAnnouncement)s, %(fullname)s, %(readCount)s, %(anonymous)s )
+        ''',
         {
             "type": body['type'],
             "email": body['email'],
             "title": body['title'],
-            "text": body['text'],
+            "text": "",
             "isAnnouncement": body['isAnnouncement'],
             "fullname": body['fullname'],
             "readCount": body['readCount'],
             "anonymous": body['anonymous']
         }
     )
-    next_postid = cursor.lastrowid()
+    postid = cursor.lastrowid()
 
     # Handle image upload
-    handle_imgs(body, next_postid)
+    new_text = upload_imgs(body['text'], postid)
+
+    # Update the post with the text
+    cursor.execute(
+        "UPDATE posts SET text = %(text)s WHERE postid = %(postid)s",
+        {
+            'text': new_text,
+            'postid': postid
+        }
+    )
 
     return flask.jsonify({'message': 'post created successfully'}), 201
 
@@ -68,24 +79,24 @@ def update_post(postid):
     # Fetch body from request
     body = flask.request.get_json()
 
-    # Fetch previous post by postid
+    # Fetch previous text by postid
     cursor = server.model.Cursor()
     cursor.execute(
-        "SELECT * FROM posts WHERE postid = %(postid)s",
+        "SELECT text FROM posts WHERE postid = %(postid)s",
         {
             'postid': postid
         }
     )
-    prev_post = cursor.fetchone()
+    prev_text = cursor.fetchone()['text']
 
-    if not prev_post:
+    if not prev_text:
         return flask.jsonify({'error': f'Post {postid} not found'}), 404
 
     # Handle image upload
     #   Compare the new text with the previous text
     #   Deletes / uploads images accordingly
     #   Text includes raw image pixel values
-    handle_imgs(body, postid, prev_post['text'])
+    new_text = update_imgs(body['text'], prev_text, postid)
 
     cursor.execute(
         "UPDATE posts SET "
@@ -93,7 +104,7 @@ def update_post(postid):
         "WHERE postid = %(postid)s",
         {
             'title': body['title'],
-            'text': body['text'],
+            'text': new_text,
             'isAnnouncement': body['isAnnouncement'],
             'postid': postid,
         }

@@ -1,0 +1,6 @@
+CREATE TABLE ebdb.notificationARNs (
+    email VARCHAR(40) PRIMARY KEY,
+    endpointARN TEXT NOT NULL,
+    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_email FOREIGN KEY (email) REFERENCES ebdb.users(email) ON DELETE CASCADE
+);

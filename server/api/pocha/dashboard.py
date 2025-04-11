@@ -1,6 +1,7 @@
 import flask
 import server
-from ..helpers import token_required, check_orderItems_and_delete
+from ..helpers import token_required
+from .notification import send_notification
 from collections import defaultdict
 
 
@@ -163,18 +164,39 @@ def put_order_item_status(orderItemID):
     '''
     # fetch orderItem first and check its status
     cursor = server.model.Cursor()
+    # cursor.execute(
+    #     """
+    #     SELECT status, parentOrderID FROM orderItem
+    #     WHERE orderItemID = %(orderItemID)s
+    #     """,
+    #     {
+    #         'orderItemID': orderItemID
+    #     }
+    # )
+    # orderItem = cursor.fetchone()
+    # orderID = orderItem['parentOrderID']
+    # status = orderItem['status']
+    # new_status = None
+
     cursor.execute(
         """
-        SELECT status, parentOrderID FROM orderItem
-        WHERE orderItemID = %(orderItemID)s
+        SELECT 
+            oi.status, 
+            o.email, 
+            m.isImmediatePrep
+        FROM orderItem oi
+        JOIN `order` o ON oi.parentOrderID = o.orderID
+        JOIN menu m ON oi.menuID = m.menuID
+        WHERE oi.orderItemID = %(orderItemID)s
         """,
         {
             'orderItemID': orderItemID
         }
     )
     orderItem = cursor.fetchone()
-    orderID = orderItem['parentOrderID']
     status = orderItem['status']
+    email = orderItem['email']
+    is_immediate_prep = orderItem['isImmediatePrep']
     new_status = None
 
     match status:
@@ -188,6 +210,9 @@ def put_order_item_status(orderItemID):
             return flask.jsonify({'error': 'Order item already closed'}), 400
         case _:
             return flask.jsonify({'error': 'Invalid status'}), 400
+        
+    if status == 'pending' and is_immediate_prep:
+        new_status = 'ready'
     
     # change status of orderItem
     cursor.execute(
@@ -202,19 +227,21 @@ def put_order_item_status(orderItemID):
         }
     )
 
-    # find email or order issuer
-    cursor.execute(
-        """
-        SELECT email FROM `order`
-        WHERE orderID = %(orderID)s
-        """,
-        {
-            'orderID': orderID
+    # 
+
+    # send notification (silent) when order status is changed
+    send_notification(
+        email=email,
+        subject="order-status-update",
+        silent=True,
+        data={
+            'event': 'order-status-update',
+            'orderItemID': orderItemID,
+            'status': new_status
         }
     )
-    email = cursor.fetchone()['email']
 
-    # emit to socket event "status-change-{email}"
+    # emit socket event to dashboard (web)
     server.sio.emit(
         f"status-change-{email}", 
         {
@@ -222,9 +249,20 @@ def put_order_item_status(orderItemID):
             'orderItemID': orderItemID
         }
     )
+    
+    # send push notification (alert) when order is ready
+    if new_status == 'ready':
+        send_notification(
+            email=email,
+            subject="Order Status Changed",
+            title="Your Order is Ready!",
+            body="Please pick up your order at the booth."
+        )
 
     return flask.jsonify({
-        'message': f"orderItem {orderItemID} status changed to {new_status}"}
+        "orderItemID": orderItemID,
+        'newStatus': new_status
+    }
     ), 200
 
 @server.application.route('/api/v2/pocha/dashboard/change-stock/', methods=['PUT'])

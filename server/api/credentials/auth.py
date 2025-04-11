@@ -8,24 +8,43 @@ import boto3
 # /api/v2/credentials/auth
 @server.application.route('/api/v2/auth/userExists/<string:email>', methods=['GET'])
 def check_existing_user(email):
-    cursor = server.model.Cursor()
-    cursor.execute(
-        "SELECT * FROM users "
-        "WHERE email = %(email)s",
-        {
+   cursor = server.model.Cursor()
+   cursor.execute(
+      "SELECT * FROM users "
+      "WHERE email = %(email)s",
+      {
+         'email': email
+      }
+   )
+   user = cursor.fetchone()
+
+   if user:
+      return flask.jsonify({
+         "message": "requested user exists",
+         "fullname": user['fullname']
+      }), 200
+
+   # temporary logic for app evaluation
+   else:
+      # add the user, regardless of email format
+      cursor.execute(
+         '''
+         INSERT INTO users (email, fullname, major, gradYear, bornYear, bornMonth, bornDate)
+         values (%(email)s, 'test_user', 'N/A', 0, 0, 0, 0)
+         ''',
+         {
             'email': email
-        }
-    )
-    user = cursor.fetchone()
-    
-    if user:
-       return flask.jsonify({
-          "message": "requested user exists",
-          "fullname": user['fullname']
-       }), 200
-    return flask.jsonify({
-       "message": "requested user does not exist"
-    }), 404
+         }
+      )
+      user = cursor.fetchone()
+
+      return flask.jsonify({
+         "message": "requested user exists",
+         "fullname": user['fullname']
+      }), 200
+   #  return flask.jsonify({
+   #     "message": "requested user does not exist"
+   #  }), 404
     
 @server.application.route('/api/v2/auth/signup/', methods=['POST'])
 def add_user():
