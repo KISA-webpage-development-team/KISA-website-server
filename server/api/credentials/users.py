@@ -25,21 +25,7 @@ def get_user(email):
 
     # return 404 NOT FOUND
     if not user:
-        print("[LOG-GET-USER] user does not exist: ", email)
-        cursor.execute(
-            '''
-            INSERT INTO users (email, fullname, major, gradYear, bornYear, bornMonth, bornDate)
-            values (%(email)s, 'test_user', 'N/A', 0, 0, 0, 0)
-            ''',
-            {
-                'email': email
-            }
-        )
-        print("[LOG-GET-USER] fake test user made for: ", email)
-        # render context
-        return flask.jsonify({
-            "message": "requested user exists",
-        }), 200
+        return flask.jsonify({'error': 'No User Found'}), 404
 
     # render context
     user['url'] = flask.request.url
