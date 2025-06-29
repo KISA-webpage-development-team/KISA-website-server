@@ -25,7 +25,7 @@ Now, set up a virtual environemt using virtualenv.
 ~/kisaweb-server $ virtualenv virt
 ```
 
-Now, turn the virtual environment on.
+Now, turn the virtual environment on
 
 ```
 ~/kisaweb-server $ source virt/bin/activate
@@ -51,7 +51,7 @@ To open a local server on port 8000 (DO NOT FORGET THE -l FLAG):
 - Open a browser, and access http://localhost:8000
 - Following the base url as above, the routes defined can be accessed from here.
 
-To access endpoints that need bodies or headers specified, use curl.
+To access endpoints that need bodies or headers specified, use curl...
 
 ```
 (virt) ~/kisaweb-server $ curl -X POST \
