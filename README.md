@@ -6,7 +6,7 @@ Official repository of the KISA website server.
 
 The server itself is deployed in the AWS Elastic Beanstalk environment.
 This server interacts with the client, (https://umichkisa.com) and the MySQL database
-deployed in AWS RDS environment.
+deployed in AWS RDS environment
 
 ## Getting Started
 
