@@ -7,33 +7,33 @@ import server.api.jobs.third_party.wanted.wanted as wanted
 @server.application.route("/api/v2/jobs/", methods=["GET"])
 def get_jobs_info():
     source = flask.request.args.get("from", "third-party")
+    
     if source == "third-party":
-        # wanted api - internships
-        # data, next_url, status_code = wanted.fetch_wanted_internships(
-        #     category=flask.request.args.get('category'),
-        #     offset=flask.request.args.get('offset', 0),
-        #     limit=flask.request.args.get('limit', 20)
-        # )
-
-        # approach 1: fetch all internships with employment_type == 'intern'
-        # NOTE: this approach works, but slow because it fetches multiple pages
+        # Convert Flask string parameters to integers BEFORE passing to wanted functions
+        try:
+            offset = int(flask.request.args.get("offset", 0))
+        except (ValueError, TypeError):
+            offset = 0
+            
+        try:
+            limit = int(flask.request.args.get("limit", 20))
+        except (ValueError, TypeError):
+            limit = 20
+            
+        category = flask.request.args.get("category")  # This can stay as string
+        
         response = wanted.fetch_all_internships_with_employment_type_check(
-            category=flask.request.args.get("category"),
-            offset=flask.request.args.get("offset", 0),
-            limit=flask.request.args.get("limit", 20),
+            category=category,
+            offset=offset,    # Now definitely an integer
+            limit=limit,      # Now definitely an integer
         )
-
-        # approach 2: fetch all internships with search position
-        # NOTE: this approach is not ideal because category is not used
-        # response = wanted.fetch_all_internships_with_search_position(
-        #     category=flask.request.args.get("category"),
-        #     offset=flask.request.args.get("offset", 0),
-        #     limit=flask.request.args.get("limit", 20),
-        # )
-
-        return flask.jsonify(response), 200
+        
+        return flask.Response(
+            flask.json.dumps(response, ensure_ascii=False, indent=2),
+            mimetype='application/json; charset=utf-8'
+        )
+        
     elif source == "crawler":
-        # Placeholder for crawler logic
         return flask.jsonify(
             {"message": "Crawler job source not implemented yet."}
         ), 501
