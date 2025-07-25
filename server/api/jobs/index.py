@@ -2,11 +2,13 @@ import flask
 import server
 
 import server.api.jobs.third_party.wanted.wanted as wanted
-
+from server.api.jobs.crawler.nklcb import get_jobs
 
 @server.application.route("/api/v2/jobs/", methods=["GET"])
 def get_jobs_info():
     source = flask.request.args.get("from", "third-party")
+
+    # 1. via some API
     if source == "third-party":
         # wanted api - internships
         # data, next_url, status_code = wanted.fetch_wanted_internships(
@@ -32,11 +34,14 @@ def get_jobs_info():
         # )
 
         return flask.jsonify(response), 200
+    
+    # 2. via automatic crawling
     elif source == "crawler":
-        # Placeholder for crawler logic
-        return flask.jsonify(
-            {"message": "Crawler job source not implemented yet."}
-        ), 501
+        try:
+            jobs = get_jobs()
+            return flask.jsonify(jobs), 200
+        except Exception as e:
+            return flask.jsonify({"error": str(e)}), 500
     else:
         return flask.jsonify(
             {"error": f"Job source '{source}' is not supported."}
