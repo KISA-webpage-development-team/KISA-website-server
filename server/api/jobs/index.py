@@ -11,7 +11,19 @@ def get_jobs_info():
             # Use the optimized build_flask_response function
             response = wanted.build_flask_response(flask.request.args)
             
-            # Check for errors
+            # Check for validation errors (400 status code)
+            if "error" in response and "status_code" in response:
+                return flask.Response(
+                    flask.json.dumps({
+                        "jobs": [],
+                        "next": None,
+                        "error": response["error"]
+                    }, ensure_ascii=False, indent=2),
+                    status=response["status_code"],  # Use the specific status code (400)
+                    mimetype='application/json; charset=utf-8'
+                )
+            
+            # Check for other errors (500 status code)
             if "error" in response:
                 return flask.Response(
                     flask.json.dumps({
