@@ -40,10 +40,6 @@ def validate_request_params(tags, start_date, end_date):
         return False, "fulltime positions cannot have endDate", 400
     
     
-    #  fulltime일때 endDate가 존재할 경우 400
-    if "fulltime" in tags and end_date:
-        return False, "fulltime positions cannot have endDate", 400
-    
     #  startDate와 endDate가 모두 존재할 때 startDate > endDate 일 경우 400
     if start_date and end_date:
         try:
@@ -104,34 +100,6 @@ def filter_jobs_by_date_range(jobs, start_date=None, end_date=None):
     return filtered_jobs
 
 
-
-def check_wanted_api_supports_employment_type():
-    """
-    Test if Wanted API supports employment_type parameter directly.
-    This helps us determine if we can optimize API calls.
-    """
-    try:
-        # Test with employment_type parameter
-        params = {
-            "employment_type": "intern",
-            "limit": 1,
-            "sort": "job.latest_order"
-        }
-        
-        data, next_url, status_code = fetch_wanted_jobs(params)
-        
-        if status_code == 200 and data.get("data"):
-            # Check if all returned jobs are actually interns
-            jobs = data.get("data", [])
-            intern_jobs = [job for job in jobs if job.get("employment_type") == "intern"]
-            
-            # If API filtering worked, all jobs should be interns
-            return len(intern_jobs) == len(jobs)
-        
-        return False
-        
-    except Exception:
-        return False
 
 
 def fetch_wanted_jobs_optimized(category=None, offset=0, limit=60, locations=None):
@@ -395,24 +363,10 @@ def fetch_jobs_by_employment_type(category=None, offset=0, limit=60, employment_
     # Ensure offset and limit are integers
     offset = int(offset) if isinstance(offset, str) else offset
     limit = int(limit) if isinstance(limit, str) else limit
-    
-    # Check if we can use direct API filtering (cache this result in production)
-    api_supports_filtering = check_wanted_api_supports_employment_type()
-    
-    if api_supports_filtering:
-        # Optimized path: Use API filtering directly
-        data, next_url, status_code = fetch_jobs_with_location_fallback(
-            category=category,
-            offset=offset,
-            limit=limit,
-            employment_type=employment_type
-        )
-    else:
-        # Fallback path: Client-side filtering (your current approach but optimized)
-        # Fetch more jobs at once to reduce API calls
-        # fetch_limit = min(limit * 3, 100)  # Fetch 3x requested or max 100
+ 
+        # No client-side filtering needed, data is already filtered by API
         
-        data, next_url, status_code = fetch_jobs_with_location_fallback(
+    data, next_url, status_code = fetch_jobs_with_location_fallback(
             category=category,
             offset=offset,
             limit=limit,
@@ -420,17 +374,17 @@ def fetch_jobs_by_employment_type(category=None, offset=0, limit=60, employment_
         )
         
         # Client-side filtering
-        jobs = data.get("data", [])
-        filtered_jobs = [
+    jobs = data.get("data", [])
+    filtered_jobs = [
             job for job in jobs 
             if job.get("employment_type") == employment_type
         ]
         
         # Trim to requested limit
-        filtered_jobs = filtered_jobs[:limit]
+    filtered_jobs = filtered_jobs[:limit]
         
         # Update response
-        data["data"] = filtered_jobs
+    data["data"] = filtered_jobs
     
     return transform_wanted_response_to_client_format(data)
 
@@ -547,23 +501,21 @@ def fetch_all_internships_with_search_position(
         # Extract next offset from next_url if available
         parsed = urlparse.urlparse(next_url)
         params = urlparse.parse_qs(parsed.query)
-        try:
-            if params and "offset" in params:
+
+        if params and "offset" in params:
                 offset = int(params.get("offset", [str(offset + limit)])[0])
-            else:
+        else:
                 offset = offset + limit
-        except Exception:
-            offset = offset + limit
             
         page_count += 1
     
     # temporary response before final transformation
-    fake_wanted_response = {
+    tmp_wanted_response = {
         "data": all_positions,
         "links": {"next": next_url, "prev": None}
     }
-    
-    return transform_wanted_response_to_client_format(fake_wanted_response)
+    # Transform the response to client format
+    return transform_wanted_response_to_client_format(tmp_wanted_response)
 
 
 def build_flask_response(request_args):
