@@ -27,7 +27,6 @@ def validate_request_params(tags, start_date, end_date):
     Validate request parameters according to business rules.
     Returns (is_valid, error_message, status_code)
     """
-   
     if "convertible" in tags and "experiential" in tags:
         return False, "Cannot specify both convertible and experiential tags", 400
     
