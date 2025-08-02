@@ -1,43 +1,62 @@
 import flask
 import server
-
 import server.api.jobs.third_party.wanted.wanted as wanted
-
 
 @server.application.route("/api/v2/jobs/", methods=["GET"])
 def get_jobs_info():
     source = flask.request.args.get("from", "third-party")
+    
     if source == "third-party":
-        # wanted api - internships
-        # data, next_url, status_code = wanted.fetch_wanted_internships(
-        #     category=flask.request.args.get('category'),
-        #     offset=flask.request.args.get('offset', 0),
-        #     limit=flask.request.args.get('limit', 20)
-        # )
-
-        # approach 1: fetch all internships with employment_type == 'intern'
-        # NOTE: this approach works, but slow because it fetches multiple pages
-        response = wanted.fetch_all_internships_with_employment_type_check(
-            category=flask.request.args.get("category"),
-            offset=flask.request.args.get("offset", 0),
-            limit=flask.request.args.get("limit", 20),
-        )
-
-        # approach 2: fetch all internships with search position
-        # NOTE: this approach is not ideal because category is not used
-        # response = wanted.fetch_all_internships_with_search_position(
-        #     category=flask.request.args.get("category"),
-        #     offset=flask.request.args.get("offset", 0),
-        #     limit=flask.request.args.get("limit", 20),
-        # )
-
-        return flask.jsonify(response), 200
+        try:
+            # Use the optimized build_flask_response function
+            response = wanted.build_flask_response(flask.request.args)
+            
+            # Check for validation errors (400 status code)
+            if "error" in response and "status_code" in response:
+                return flask.Response(
+                    flask.json.dumps({
+                        "jobs": [],
+                        "next": None,
+                        "error": response["error"]
+                    }, ensure_ascii=False, indent=2),
+                    status=response["status_code"],  # Use the specific status code (400)
+                    mimetype='application/json; charset=utf-8'
+                )
+            
+            # Check for other errors (500 status code)
+            if "error" in response:
+                return flask.Response(
+                    flask.json.dumps({
+                        "jobs": [],
+                        "next": None,
+                        "error": response["error"]
+                    }, ensure_ascii=False, indent=2),
+                    status=500,
+                    mimetype='application/json; charset=utf-8'
+                )
+            
+            # Return successful response with Korean text support
+            return flask.Response(
+                flask.json.dumps(response, ensure_ascii=False, indent=2),
+                mimetype='application/json; charset=utf-8'
+            )
+            
+        except Exception as e:
+            return flask.Response(
+                flask.json.dumps({
+                    "jobs": [],
+                    "next": None,
+                    "error": str(e)
+                }, ensure_ascii=False, indent=2),
+                status=500,
+                mimetype='application/json; charset=utf-8'
+            )
+            
     elif source == "crawler":
-        # Placeholder for crawler logic
-        return flask.jsonify(
-            {"message": "Crawler job source not implemented yet."}
-        ), 501
+        return flask.jsonify({
+            "message": "Crawler job source not implemented yet."
+        }), 501
     else:
-        return flask.jsonify(
-            {"error": f"Job source '{source}' is not supported."}
-        ), 400
+        return flask.jsonify({
+            "error": f"Job source '{source}' is not supported."
+        }), 400
