@@ -43,5 +43,5 @@ from server.api.images.presigned_url import presigned_url_for_post
 from server.api.images.presigned_url import presigned_url_for_get
 
 # JOBS APIS -----------------------------------------------------------
-from server.api.jobs.index import get_jobs_info
+from server.api.jobs.index import get_jobs
 from server.api.jobs.third_party.wanted.index import get_job_categories
