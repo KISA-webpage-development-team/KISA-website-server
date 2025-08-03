@@ -6,6 +6,7 @@ import server
 
 @server.application.route('/api/v2/jobs/categories/', methods=['GET'])
 def get_job_categories():
+    """Get list of job categories available on Wanted API."""
     endpoint = '/tags/categories'
     url = constants.WANTED_BASE_URL + endpoint
     headers = helpers.get_wanted_headers()

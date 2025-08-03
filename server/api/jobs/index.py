@@ -1,14 +1,24 @@
+"""
+Jobs API exposed to the FE.
+
+- GET /api/v2/jobs/
+Fetch list of jobs from the third-party API 
+in MVP, only Wanted API is supported.
+Doc: https://linear.app/jdy-1/issue/JDY-26/apiv2jobs-api-documentation-v1-wanted-api-only
+"""
+
 import flask
 import server
 import server.api.jobs.third_party.wanted.wanted as wanted
 
 @server.application.route("/api/v2/jobs/", methods=["GET"])
-def get_jobs_info():
+def get_jobs():
+    """Get jobs from different sources."""
     source = flask.request.args.get("from", "third-party")
     
     if source == "third-party":
         try:
-            # Use the optimized build_flask_response function
+            # MVP: Only Wanted API is supported
             response = wanted.build_flask_response(flask.request.args)
             
             # Check for validation errors (400 status code)
