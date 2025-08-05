@@ -491,6 +491,7 @@ def fetch_jobs_with_location_fallback(
                 if job.get("id") not in existing_job_ids
             ]
 
+
             # Combine results
             jobs.extend(new_jobs)
 
