@@ -186,6 +186,7 @@ def extract_temp_keys(text):
     
     return matches
 
+
 def extract_uploaded_keys(text):
     # Images that are already uploaded starts with CloudFront URL
     base_url = os.getenv('CLOUDFRONT_URL')

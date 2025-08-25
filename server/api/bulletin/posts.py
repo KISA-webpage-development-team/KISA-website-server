@@ -76,6 +76,8 @@ def add_post():
 @server.application.route("/api/v2/posts/<int:postid>/", methods=['PATCH'])
 @token_required
 def update_post(postid):
+ 
+
     # Fetch body from request
     body = flask.request.get_json()
 
@@ -87,6 +89,7 @@ def update_post(postid):
             'postid': postid
         }
     )
+  
     prev_text = cursor.fetchone()['text']
 
     if not prev_text:

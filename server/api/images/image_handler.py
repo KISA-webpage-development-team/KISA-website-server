@@ -38,10 +38,20 @@ def update_imgs(new_text, prev_text, postid):
     """
     # Extract key information from the previous and new text
     # existing_keys = set(extract_keys(prev_text))
+    print("prev_text:" , prev_text)
+
     existing_keys = set(extract_uploaded_keys(prev_text))
+
+    print("existing_keys:", existing_keys)
     remaining_keys = set(extract_uploaded_keys(new_text))
     keys_to_delete = list(existing_keys - remaining_keys)
     keys_to_move = extract_temp_keys(new_text)
+    no_image_prev_text = not bool(existing_keys)
+    no_image_new_text = not bool(remaining_keys)
+
+    # case 1. no image in the original post && no new image added
+    if(no_image_prev_text and no_image_new_text):
+        return new_text
 
     # Delete the images that does not remain in the new text anymore
     client = server.model.AWSClient()
