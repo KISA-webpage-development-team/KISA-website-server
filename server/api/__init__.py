@@ -26,6 +26,8 @@ from server.api.bulletin.likes import like_or_not
 
 from server.api.pocha.info import get_pocha
 from server.api.pocha.info import get_pocha_menu
+from server.api.pocha.info import create_pocha
+from server.api.pocha.info import update_pocha
 from server.api.pocha.order import get_user_orders
 from server.api.pocha.order import get_user_closed_orders
 from server.api.pocha.cart import get_cart
