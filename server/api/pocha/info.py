@@ -326,7 +326,8 @@ def update_pocha(pochaid):
         isImmediatePrep = item.get("isImmediatePrep")
         ageCheckRequired = item.get("ageCheckRequired", False)
         imageURL = item.get("imageURL")
-        
+
+        # 이미 존재하는 메뉴 항목 처리
         if nameKor in existing_menu_map:
             # Update existing menu item
             existing_menu = existing_menu_map[nameKor]
@@ -351,11 +352,24 @@ def update_pocha(pochaid):
             )
             
             # Handle image update if provided
-            if imageURL:
+            if imageURL and len(imageURL) > 0:
                 print(f"Updating image for existing menu: {nameKor}, menuID: {existing_menu_id}")
                 new_image_url = move_image_to_pocha_folder(imageURL, existing_menu_id, is_update=True)
                 if new_image_url:
                     delete_temp_image(imageURL)
+                    # Update imageURL in the database
+                    cursor.execute(
+                        """
+                        UPDATE menu SET imageURL = %(imageURL)s WHERE menuID = %(menuID)s
+                        """,
+                        {
+                            "imageURL": new_image_url,
+                            "menuID": existing_menu_id,
+                        },
+        
+                    )
+
+        # 기존에 없던 신규 메뉴 항목 처리
         else:
             # Insert new menu item
             cursor.execute(
@@ -375,10 +389,11 @@ def update_pocha(pochaid):
                 },
             )
             
+            #가장 최근에 추가된 신규 메뉴 ID
             new_menu_id = cursor.lastrowid()
             
             # Handle image for new menu item
-            if imageURL:
+            if imageURL and len(imageURL) > 0:
                 print(f"Adding image for new menu: {nameKor}, menuID: {new_menu_id}")
                 new_image_url = move_image_to_pocha_folder(imageURL, new_menu_id, is_update=False)
                 if new_image_url:
