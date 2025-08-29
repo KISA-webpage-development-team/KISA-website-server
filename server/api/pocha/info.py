@@ -4,6 +4,8 @@ import datetime
 from ..helpers import token_required
 from collections import defaultdict
 
+from .image_helpers import move_image_to_pocha_folder, delete_temp_image, delete_existing_menu_image
+
 # POCHA APIS -----------------------------------------------------------
 # /api/v2/pocha/info
 
@@ -76,12 +78,13 @@ def get_pocha():
 #     isImmediatePrep TINYINT NOT NULL,
 #     parentPochaID INT NOT NULL,
 #     ageCheckRequired TINYINT NOT NULL DEFAULT 0,
+#     imageURL VARCHAR(512) DEFAULT NULL,
 #     FOREIGN KEY (parentPochaID) REFERENCES ebdb.pocha(pochaID) ON DELETE CASCADE
 # );
 
 
 @server.application.route("/api/v2/pocha/", methods=["POST"])
-# @token_required
+@token_required
 def create_pocha():
     data = flask.request.json
 
@@ -173,6 +176,7 @@ def create_pocha():
         stock = item.get("stock")
         isImmediatePrep = item.get("isImmediatePrep")
         ageCheckRequired = item.get("ageCheckRequired", False)
+        imageURL = item.get("imageURL") # Get imageURL from the item
 
         cursor.execute(
             """
@@ -190,12 +194,20 @@ def create_pocha():
                 "ageCheckRequired": ageCheckRequired,
             },
         )
+        
+        new_menu_id = cursor.lastrowid()
+        
+        # If imageURL exists, move it from temp to pocha folder
+        if imageURL:
+            new_image_url = move_image_to_pocha_folder(imageURL, new_menu_id)
+            if new_image_url: 
+                delete_temp_image(imageURL)
 
     return flask.jsonify({"message": f"Pocha '{title}' created successfully"}), 201
 
 
 @server.application.route("/api/v2/pocha/<int:pochaid>/", methods=["PUT"])
-# @token_required
+@token_required
 def update_pocha(pochaid):
     data = flask.request.json
 
@@ -286,12 +298,25 @@ def update_pocha(pochaid):
         },
     )
 
-    # 5. delete existing menu items for this pocha
+    # 5. Handle menu items update (instead of delete and recreate)
+    # Get existing menu items for this pocha
     cursor.execute(
-        "DELETE FROM menu WHERE parentPochaID = %(pochaid)s", {"pochaid": pochaid}
+        "SELECT menuID, nameKor, nameEng, category, price, stock, isImmediatePrep, ageCheckRequired FROM menu WHERE parentPochaID = %(pochaid)s",
+        {"pochaid": pochaid}
     )
-
-    # 6. create new menu items for the updated pocha
+    existing_menus = cursor.fetchall()
+    
+    # Create a map of existing menus by name for easy lookup
+    existing_menu_map = {}
+    for existing_menu in existing_menus:
+        # Use nameKor as the key since it should be unique within a pocha
+        key = existing_menu['nameKor']
+        existing_menu_map[key] = existing_menu
+    
+    # Track which existing menus we've processed
+    processed_existing_menus = set()
+    
+    # Process each menu item from the request
     for item in menu_items:
         nameKor = item.get("nameKor")
         nameEng = item.get("nameEng")
@@ -300,23 +325,94 @@ def update_pocha(pochaid):
         stock = item.get("stock")
         isImmediatePrep = item.get("isImmediatePrep")
         ageCheckRequired = item.get("ageCheckRequired", False)
+        imageURL = item.get("imageURL")
 
-        cursor.execute(
-            """
-            INSERT INTO menu (nameKor, nameEng, category, price, stock, isImmediatePrep, parentPochaID, ageCheckRequired)
-            VALUES (%(nameKor)s, %(nameEng)s, %(category)s, %(price)s, %(stock)s, %(isImmediatePrep)s, %(parentPochaID)s, %(ageCheckRequired)s)
-            """,
-            {
-                "nameKor": nameKor,
-                "nameEng": nameEng,
-                "category": category,
-                "price": price,
-                "stock": stock,
-                "isImmediatePrep": isImmediatePrep,
-                "parentPochaID": pochaid,
-                "ageCheckRequired": ageCheckRequired,
-            },
-        )
+        # 이미 존재하는 메뉴 항목 처리
+        if nameKor in existing_menu_map:
+            # Update existing menu item
+            existing_menu = existing_menu_map[nameKor]
+            existing_menu_id = existing_menu['menuID']
+            processed_existing_menus.add(nameKor)
+            
+            cursor.execute(
+                """
+                UPDATE menu SET nameEng = %(nameEng)s, category = %(category)s, price = %(price)s, 
+                stock = %(stock)s, isImmediatePrep = %(isImmediatePrep)s, ageCheckRequired = %(ageCheckRequired)s
+                WHERE menuID = %(menuID)s
+                """,
+                {
+                    "nameEng": nameEng,
+                    "category": category,
+                    "price": price,
+                    "stock": stock,
+                    "isImmediatePrep": isImmediatePrep,
+                    "ageCheckRequired": ageCheckRequired,
+                    "menuID": existing_menu_id,
+                },
+            )
+            
+            # Handle image update if provided
+            if imageURL and len(imageURL) > 0:
+                print(f"Updating image for existing menu: {nameKor}, menuID: {existing_menu_id}")
+                new_image_url = move_image_to_pocha_folder(imageURL, existing_menu_id, is_update=True)
+                if new_image_url:
+                    delete_temp_image(imageURL)
+                    # Update imageURL in the database
+                    cursor.execute(
+                        """
+                        UPDATE menu SET imageURL = %(imageURL)s WHERE menuID = %(menuID)s
+                        """,
+                        {
+                            "imageURL": new_image_url,
+                            "menuID": existing_menu_id,
+                        },
+        
+                    )
+
+        # 기존에 없던 신규 메뉴 항목 처리
+        else:
+            # Insert new menu item
+            cursor.execute(
+                """
+                INSERT INTO menu (nameKor, nameEng, category, price, stock, isImmediatePrep, parentPochaID, ageCheckRequired)
+                VALUES (%(nameKor)s, %(nameEng)s, %(category)s, %(price)s, %(stock)s, %(isImmediatePrep)s, %(parentPochaID)s, %(ageCheckRequired)s)
+                """,
+                {
+                    "nameKor": nameKor,
+                    "nameEng": nameEng,
+                    "category": category,
+                    "price": price,
+                    "stock": stock,
+                    "isImmediatePrep": isImmediatePrep,
+                    "parentPochaID": pochaid,
+                    "ageCheckRequired": ageCheckRequired,
+                },
+            )
+            
+            #가장 최근에 추가된 신규 메뉴 ID
+            new_menu_id = cursor.lastrowid()
+            
+            # Handle image for new menu item
+            if imageURL and len(imageURL) > 0:
+                print(f"Adding image for new menu: {nameKor}, menuID: {new_menu_id}")
+                new_image_url = move_image_to_pocha_folder(imageURL, new_menu_id, is_update=False)
+                if new_image_url:
+                    delete_temp_image(imageURL)
+    
+    # Delete menu items that are no longer in the updated list
+    for existing_menu in existing_menus:
+        if existing_menu['nameKor'] not in processed_existing_menus:
+            menu_id_to_delete = existing_menu['menuID']
+            print(f"Deleting menu item: {existing_menu['nameKor']}, menuID: {menu_id_to_delete}")
+            
+            # Delete associated image if it exists
+            delete_existing_menu_image(menu_id_to_delete)
+            
+            # Delete the menu item
+            cursor.execute(
+                "DELETE FROM menu WHERE menuID = %(menuID)s",
+                {"menuID": menu_id_to_delete}
+            )
 
     return flask.jsonify({"message": f"Pocha '{title}' updated successfully"}), 200
 
