@@ -357,17 +357,6 @@ def update_pocha(pochaid):
                 new_image_url = move_image_to_pocha_folder(imageURL, existing_menu_id, is_update=True)
                 if new_image_url:
                     delete_temp_image(imageURL)
-                    # Update imageURL in the database
-                    cursor.execute(
-                        """
-                        UPDATE menu SET imageURL = %(imageURL)s WHERE menuID = %(menuID)s
-                        """,
-                        {
-                            "imageURL": new_image_url,
-                            "menuID": existing_menu_id,
-                        },
-        
-                    )
 
         # 기존에 없던 신규 메뉴 항목 처리
         else:
