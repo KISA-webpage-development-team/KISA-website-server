@@ -75,8 +75,6 @@ def move_image_to_pocha_folder(temp_image_url, menu_id, is_update=False):
         # If this is an update, delete any existing image first
         if is_update:
             delete_existing_menu_image(menu_id)
-        print(f"Deleting existing image: {new_public_id}")
-        print(f"Deleting existing image: {temp_part}")
         # Rename the image (this moves it from temp to pocha folder)
         result = cloudinary.uploader.rename(
             f"temp/{temp_part}",
