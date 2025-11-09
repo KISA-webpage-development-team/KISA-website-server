@@ -443,3 +443,26 @@ def get_pocha_menu(pochaid):
         response.append({"category": key, "menusList": category_dict[key]})
 
     return flask.jsonify(response), 200
+
+
+@server.application.route("/api/v2/pocha/previous/", methods=["GET"])
+def get_previous_pocha_list():
+    # retrieve the current time from the client request
+    currentTime = flask.request.args.get("date", type=datetime.datetime.fromisoformat)
+
+    if not currentTime:
+        return flask.jsonify({"error": "current time not specified"}), 400
+
+    # fetch all pochas where endDate < currentTime
+    cursor = server.model.Cursor()
+    cursor.execute(
+        "SELECT * FROM pocha WHERE endDate < %(currentTime)s ORDER BY endDate DESC", 
+        {"currentTime": currentTime}
+    )
+    previous_pochas = cursor.fetchall()
+
+    # Return empty list if no previous pochas found
+    if not previous_pochas:
+        return flask.jsonify([]), 200
+
+    return flask.jsonify(previous_pochas), 200

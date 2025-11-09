@@ -293,3 +293,4 @@ def put_menu_stock():
 
     # return success message
     return flask.jsonify({"message": "stock quantity changed"}), 200
+
