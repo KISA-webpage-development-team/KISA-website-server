@@ -14,7 +14,6 @@ from .image_helpers import move_image_to_pocha_folder, delete_temp_image, delete
 def get_pocha():
     # retrieve the current time from the client request
     currentTime = flask.request.args.get("date", type=datetime.datetime.fromisoformat)
-
     if not currentTime:
         return flask.jsonify({"error": "current time not specified"}), 400
 
@@ -39,49 +38,6 @@ def get_pocha():
     if currentTime < pocharow["endDate"] and pocharow["startDate"] <= currentTime:
         pocharow["ongoing"] = True
         return flask.jsonify(pocharow), 200
-
-
-# input
-# {
-#  "email": "string",
-#  "startDate": "YYYY-MM-DDTHH:MM:SS",
-#  "endDate": "YYYY-MM-DDTHH:MM:SS",
-#  "title": "string",
-#  "description": "string"
-#  "menus": [
-#      {
-#          "nameKor": "string",
-#          "nameEng": "string",
-#          "category": "string",
-#          "price": float,
-#          "stock": int,
-#          "isImmediatePrep": boolean,
-#          "ageCheckRequired": boolean (optional, default to false)
-#      }
-#  ]
-# }
-
-# CREATE TABLE ebdb.pocha (
-#     pochaID INT AUTO_INCREMENT PRIMARY KEY,
-#     startDate DATETIME NOT NULL,
-#     endDate DATETIME NOT NULL,
-#     title VARCHAR(32) NOT NULL,
-#     description VARCHAR(1024) NOT NULL
-# );
-# CREATE TABLE ebdb.menu (
-#     menuID INT AUTO_INCREMENT PRIMARY KEY,
-#     nameKor VARCHAR(32) NOT NULL,
-#     nameEng VARCHAR(32) NOT NULL,
-#     category VARCHAR(32) NOT NULL,
-#     price DOUBLE(5,2) NOT NULL,
-#     stock INT NOT NULL,
-#     isImmediatePrep TINYINT NOT NULL,
-#     parentPochaID INT NOT NULL,
-#     ageCheckRequired TINYINT NOT NULL DEFAULT 0,
-#     imageURL VARCHAR(512) DEFAULT NULL,
-#     FOREIGN KEY (parentPochaID) REFERENCES ebdb.pocha(pochaID) ON DELETE CASCADE
-# );
-
 
 @server.application.route("/api/v2/pocha/", methods=["POST"])
 @token_required
@@ -204,7 +160,6 @@ def create_pocha():
                 delete_temp_image(imageURL)
 
     return flask.jsonify({"message": f"Pocha '{title}' created successfully"}), 201
-
 
 @server.application.route("/api/v2/pocha/<int:pochaid>/", methods=["PUT"])
 @token_required
@@ -404,7 +359,6 @@ def update_pocha(pochaid):
             )
 
     return flask.jsonify({"message": f"Pocha '{title}' updated successfully"}), 200
-
 
 @server.application.route("/api/v2/pocha/menu/<int:pochaid>/", methods=["GET"])
 # @token_required

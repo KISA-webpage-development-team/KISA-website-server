@@ -3,6 +3,15 @@ import server
 from ..helpers import token_required, check_orderItems_and_delete
 from collections import defaultdict
 
+# API ENDPOINTS: Create, Read, Update, Delete
+# REST API
+# CREATE: POST
+# READ: GET
+# UPDATE: PATCH/PUT
+# DELETE: DELETE
+
+# GraphQL =,....
+
 
 # POCHA APIS -----------------------------------------------------------
 # /api/v2/pocha/cart
