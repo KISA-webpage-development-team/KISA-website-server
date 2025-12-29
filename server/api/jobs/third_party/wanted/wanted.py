@@ -58,16 +58,20 @@ def build_flask_response(request_args):
         # Determine what type of jobs to fetch based on tags
         if not tags:
             # No tags specified: fetch 신입 + 인턴 (both regular and intern)
+            # Default to entry level (years 0~1) if no specific tags
             response_data = fetch_jobs_mixed_employment_types(
-                category=category, offset=offset, limit=limit
+                category=category, offset=offset, limit=limit, years=[0]
             )
         elif "fulltime" in tags:
             # Fulltime positions requested
+            # Fix: "New Grad" (신입) implies years=[0]
+            years = [0] 
             response_data = fetch_jobs_by_employment_type(
                 category=category,
                 offset=offset,
                 limit=limit,
                 employment_type="regular",
+                years=years,
             )
         elif "intern" in tags:
             # Use existing function that works with /v2/jobs endpoint
@@ -87,9 +91,9 @@ def build_flask_response(request_args):
                 data, original_params
             )
         else:
-            # Default: fetch both types
+            # Default: fetch both types with entry level focus
             response_data = fetch_jobs_mixed_employment_types(
-                category=category, offset=offset, limit=limit
+                category=category, offset=offset, limit=limit, years=[0]
             )
 
         # Apply tag filtering AFTER fetching data
@@ -119,6 +123,12 @@ def fetch_wanted_jobs(params=None):
     headers = helpers.get_wanted_headers()
     if params is None:
         params = {}
+    
+    # Ensure years parameter is correctly formatted if present
+    if "years" in params and isinstance(params["years"], list):
+        # API expects multiple 'years' params like years=0&years=1
+        pass 
+        
     resp = requests.get(
         url, headers=headers, params=params, timeout=constants.REQUEST_TIMEOUT
     )
@@ -207,7 +217,7 @@ def filter_jobs_by_date_range(jobs, start_date=None, end_date=None):
 
 
 def fetch_wanted_jobs_optimized(
-    category=None, offset=0, limit=60, locations=None
+    category=None, offset=0, limit=60, locations=None, years=None
 ):
     """
     Optimized function to fetch jobs with better API parameter usage.
@@ -228,6 +238,13 @@ def fetch_wanted_jobs_optimized(
             params["locations"] = locations
         else:
             params["locations"] = [locations]
+            
+    # Add years filter (e.g. [0] for new grad)
+    if years:
+        if isinstance(years, list):
+            params["years"] = years
+        else:
+            params["years"] = [years]
 
     return fetch_wanted_jobs(params)
 
@@ -246,7 +263,7 @@ def fetch_wanted_internships(
     params = {
         "offset": offset,
         "limit": limit,
-        "years": [0, 2],  # intern, entry level
+        "years": [0],  # intern is typically 0 years
     }
 
     # Add additional params first
@@ -320,7 +337,7 @@ def transform_wanted_response_to_client_format(
                     "(정규직전환)",
                 ]
 
-                # Experiential keywords (체험형)
+                # Experiential keywords (체험형) - Expanded list
                 experiential_keywords = [
                     "체험형",
                     "체험",
@@ -332,6 +349,12 @@ def transform_wanted_response_to_client_format(
                     "(실습)",
                     "단기",
                     "방학",
+                    "summer", 
+                    "winter",
+                    "internship",
+                    "bootcamp",
+                    "부트캠프",
+                    "academy",
                 ]
 
                 # Check for convertible keywords first
@@ -344,7 +367,12 @@ def transform_wanted_response_to_client_format(
                     keyword in job_name for keyword in experiential_keywords
                 ):
                     is_fulltime_convertible = False
-                # If no indicators found, keep as null
+                # If neither, we can infer it's experiential if it's explicitly 'intern' 
+                # but has no convertible keywords. This helps with the user's issue.
+                else: 
+                     # Implicitly treat 'intern' without convertible keywords as experiential
+                     # This is a heuristic: most 'convertible' jobs loudly advertise it.
+                     is_fulltime_convertible = False
 
         # Transform to client format
         transformed_job = {
@@ -392,6 +420,7 @@ def transform_wanted_response_to_client_format(
                         elif isinstance(value, list):
                             # Handle other list parameters as separate entries
                             for v in value:
+                                # Fix: Handle integers in list (e.g. years)
                                 param_pairs.append(f"{key}={v}")
                         else:
                             param_pairs.append(f"{key}={value}")
@@ -420,13 +449,18 @@ def filter_jobs_by_tags(jobs, tags):
             # 신입 정규직: isFulltimePosition === true
             if job.get("isFulltimePosition", False):
                 should_include = True
-
+        
         elif "intern" in tags:
             # 인턴 포지션: isFulltimePosition === false
             if not job.get(
                 "isFulltimePosition", True
             ):  # This means it's an intern
-                if "convertible" in tags:
+                if "convertible" in tags and "experiential" in tags:
+                     # If BOTH tags are present, we want ALL interns (union)
+                     # Logic: (convertible) OR (experiential) == All Interns in our model
+                     should_include = True
+                
+                elif "convertible" in tags:
                     # 채용연계형만: isFulltimeConvertible === true
                     if job.get("isFulltimeConvertible") is True:
                         should_include = True
@@ -435,9 +469,22 @@ def filter_jobs_by_tags(jobs, tags):
                     if job.get("isFulltimeConvertible") is False:
                         should_include = True
                 else:
-                    # 모든 인턴 (체험형 + 채용연계형 + 불명확한 것들)
-                    # Include all intern positions regardless of convertible status
+                    # 'intern' tag only -> Include all intern positions
                     should_include = True
+                    
+        # Check for 'global' tag (foreigner friendly)
+        # Note: This is usually combined with other tags or standalone. 
+        # As implemented currently in client, it's a separate badge/filter.
+        # If 'global' is in tags, we ONLY show jobs with isOnlyForInternationalUniversity=True
+        if "global" in tags:
+            # If the job is NOT international friendly, exclude it even if it matched previous criteria
+            if not job.get("isOnlyForInternationalUniversity", False):
+                should_include = False
+            # If it IS international friendly, and we haven't already included it (e.g. searching just for global jobs), include it?
+            # However, usually 'global' is a restriction on top of 'fulltime' or 'intern'.
+            # If the user JUST searches for 'global', we should include it.
+            elif not should_include and len(tags) == 1:
+                 should_include = True
 
         if should_include:
             filtered_jobs.append(job)
@@ -446,7 +493,7 @@ def filter_jobs_by_tags(jobs, tags):
 
 
 def fetch_jobs_with_location_fallback(
-    category=None, offset=0, limit=60, employment_type=None
+    category=None, offset=0, limit=60, employment_type=None, years=None
 ):
     """
     Fetch jobs with location fallback: 수도권 first, then 지방.
@@ -459,6 +506,7 @@ def fetch_jobs_with_location_fallback(
             offset=offset,
             limit=limit,
             locations=["seoul", "gyeonggi"],
+            years=years,
         )
 
         jobs = data.get("data", [])
@@ -472,12 +520,14 @@ def fetch_jobs_with_location_fallback(
 
         if remaining_limit > 0:
             # Fetch from all Korea (no location filter)
+            # Fix: Ensure category is passed to fallback too!
             fallback_data, fallback_next_url, fallback_status = (
                 fetch_wanted_jobs_optimized(
                     category=category,
                     offset=0,  # Start from beginning for fallback
                     limit=remaining_limit,
                     locations=None,  # No location filter = all Korea
+                    years=years,
                 )
             )
 
@@ -507,12 +557,12 @@ def fetch_jobs_with_location_fallback(
     except Exception as e:
         # If location-specific request fails, try without location filter
         return fetch_wanted_jobs_optimized(
-            category=category, offset=offset, limit=limit, locations=None
+            category=category, offset=offset, limit=limit, locations=None, years=years
         )
 
 
 def fetch_jobs_by_employment_type(
-    category=None, offset=0, limit=60, employment_type="intern"
+    category=None, offset=0, limit=60, employment_type="intern", years=None
 ):
     """
     Optimized function to fetch jobs by employment type.
@@ -529,6 +579,7 @@ def fetch_jobs_by_employment_type(
         offset=offset,
         limit=limit,
         employment_type=None,  # No API filtering
+        years=years,
     )
 
     # Client-side filtering
@@ -544,11 +595,18 @@ def fetch_jobs_by_employment_type(
     data["data"] = filtered_jobs
 
     # Build original params dict for pagination
-    original_params = {"category": category, "offset": offset, "limit": limit}
+    original_params = {
+        "category": category, 
+        "offset": offset, 
+        "limit": limit
+    }
+    if years:
+        original_params["years"] = years
+        
     return transform_wanted_response_to_client_format(data, original_params)
 
 
-def fetch_jobs_mixed_employment_types(category=None, offset=0, limit=60):
+def fetch_jobs_mixed_employment_types(category=None, offset=0, limit=60, years=None):
     """
     Fetch both 신입 (regular) and 인턴 (intern) positions.
     This is for when no specific employment type is requested.
@@ -559,7 +617,7 @@ def fetch_jobs_mixed_employment_types(category=None, offset=0, limit=60):
 
     # Fetch both employment types in one call (no employment_type filter)
     data, next_url, status_code = fetch_jobs_with_location_fallback(
-        category=category, offset=offset, limit=limit, employment_type=None
+        category=category, offset=offset, limit=limit, employment_type=None, years=years
     )
 
     # Filter for 신입 (regular) and 인턴 (intern) only
