@@ -1,0 +1,16 @@
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+
+# Virtual environment
+virt/*
+venv/*
+.venv/*
+
+# Secrets
+.env
+
+# Python cache directories
+__pycache__/
+.DS_Store
