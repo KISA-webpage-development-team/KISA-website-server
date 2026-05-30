@@ -1,0 +1,54 @@
+name: Risk label
+
+# Deterministically applies the risk label (simple / complex / human-required)
+# by parsing a "Risk level: <level>" line from the PR body. Runs on every PR so
+# the label reflects whatever the PR body currently declares.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply risk label from PR body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          # Passed via env (never inlined into the script) to avoid injection.
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+
+          # Ensure the three risk labels exist (idempotent).
+          gh label create simple         -R "$REPO" --color 0e8a16 --description "Low-risk, well-contained change" --force >/dev/null 2>&1 || true
+          gh label create complex        -R "$REPO" --color fbca04 --description "Non-trivial logic; deeper review needed" --force >/dev/null 2>&1 || true
+          gh label create human-required -R "$REPO" --color b60205 --description "Sensitive area; requires human review, no auto-approve" --force >/dev/null 2>&1 || true
+
+          # Extract the declared risk level (case-insensitive, optional backticks).
+          RISK="$(printf '%s' "$BODY" \
+            | grep -ioE 'risk level:[[:space:]]*`?(simple|complex|human-required)`?' \
+            | head -n 1 \
+            | grep -ioE '(simple|complex|human-required)' \
+            | head -n 1 \
+            | tr '[:upper:]' '[:lower:]' || true)"
+
+          if [ -z "${RISK:-}" ]; then
+            echo "No 'Risk level:' line found in PR body; leaving labels unchanged."
+            exit 0
+          fi
+          echo "Declared risk level: $RISK"
+
+          # Remove any stale risk labels, then apply the declared one.
+          for l in simple complex human-required; do
+            if [ "$l" != "$RISK" ]; then
+              gh pr edit "$PR" -R "$REPO" --remove-label "$l" >/dev/null 2>&1 || true
+            fi
+          done
+          gh pr edit "$PR" -R "$REPO" --add-label "$RISK"

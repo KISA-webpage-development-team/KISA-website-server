@@ -19,13 +19,16 @@ a pull request. It is never authorization to push to `main` or to merge.
 
 ### Working style
 - Create small, focused pull requests. One concern per PR.
-- Never push directly to `main`. Always work on a branch and open a PR.
+- Never push directly to `main`. Always work on a branch; the automation opens the PR (see "Opening the pull request").
 - Never auto-merge. Codex review and the human owner decide.
 - Write a clear PR description with: a short summary of the change, the reason, the files
   touched, and the checks you ran with their results.
 
 ### Risk level (required on every PR)
-Every PR you open MUST declare a risk level, both as a label and in the PR body:
+Every PR MUST declare a risk level. You declare it by including a line of the exact form
+`Risk level: <level>` in the PR body (see "Opening the pull request" below). A workflow reads
+that line and applies the matching label automatically, so you do not run `gh label` yourself.
+The levels are:
 
 - `simple` — small, low-risk, well-contained change (copy, isolated bug fix) with passing checks.
 - `complex` — multi-file or non-trivial logic change. Review more deeply, add or update tests,
@@ -33,8 +36,17 @@ Every PR you open MUST declare a risk level, both as a label and in the PR body:
 - `human-required` — touches a sensitive area (see below). Do not present it as safe to
   auto-approve; flag it for human review.
 
-Apply the label with `gh pr edit <number> --add-label <risk>`. Create the label first with
-`gh label create <risk>` if it does not exist.
+### Opening the pull request
+Do NOT run `gh pr create` yourself. After you commit and push your branch, an automated
+workflow step opens the PR for you. Hand off the PR title and body by writing two files:
+
+- `/tmp/pr_title.txt` — a single line: the PR title.
+- `/tmp/pr_body.md` — the PR description. It MUST contain a line of the exact form
+  `Risk level: simple` (or `complex`, or `human-required`), plus a short summary, the reason,
+  the files touched, and the checks you ran with results.
+
+If you do not write these files the PR is still opened, but with a generic body and defaulted
+to `human-required`.
 
 ### Always mark `human-required`
 Mark the PR `human-required` if it touches any of:

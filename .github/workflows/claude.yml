@@ -1,8 +1,9 @@
 name: Claude Code
 
 # Runs Claude Code when "@claude" appears in an issue, an issue/PR comment,
-# or a PR review. Claude implements changes on a branch and opens a PR; it
-# never pushes to the default branch and never auto-merges.
+# or a PR review. Claude implements changes on a branch; a separate step then
+# opens a PR using CLAUDE_PR_PAT so that the pull_request event fires (the
+# default GITHUB_TOKEN would not trigger the risk-label and Codex workflows).
 on:
   issue_comment:
     types: [created]
@@ -35,6 +36,41 @@ jobs:
           fetch-depth: 1
 
       - name: Run Claude Code
+        id: claude
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      # Open the PR ourselves with a PAT. PRs opened by the default GITHUB_TOKEN
+      # do not trigger other workflows, so the risk-label and Codex reviews would
+      # never run. The PAT is scoped to this step only; it never authors commits.
+      - name: Open pull request
+        if: ${{ steps.claude.outputs.branch_name != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PR_PAT }}
+          BRANCH: ${{ steps.claude.outputs.branch_name }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "CLAUDE_PR_PAT is not set; branch '$BRANCH' was pushed but no PR was opened."
+            echo "Add the CLAUDE_PR_PAT secret to enable automatic PR creation."
+            exit 0
+          fi
+          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
+            echo "A PR already exists for $BRANCH; nothing to do."
+            exit 0
+          fi
+          TITLE="Claude: ${BRANCH}"
+          if [ -f /tmp/pr_title.txt ]; then
+            TITLE="$(head -n 1 /tmp/pr_title.txt)"
+          fi
+          if [ ! -f /tmp/pr_body.md ]; then
+            {
+              echo "Automated pull request created by Claude Code."
+              echo
+              echo "Risk level: human-required (risk not reported by Claude; defaulting to human review)."
+            } > /tmp/pr_body.md
+          fi
+          gh pr create --base "${BASE:-main}" --head "$BRANCH" \
+            --title "$TITLE" --body-file /tmp/pr_body.md
