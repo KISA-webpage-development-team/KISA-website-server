@@ -1,12 +1,13 @@
 import flask
 import server
 import json
+from ..helpers import authenticated_email, token_required
 
 # POCHA APIS -----------------------------------------------------------
 # /api/v2/pocha/notification
 
 @server.application.route('/api/v2/pocha/notification/register-token/', methods=['POST'])
-# @token_required
+@token_required
 def register_token():
     '''
     Register FCM token for inputted user from log in session
@@ -16,6 +17,8 @@ def register_token():
     body = flask.request.get_json()
     token = body['token']
     email = body['email']
+    if email != authenticated_email():
+        return flask.jsonify({'error': 'Token user does not match requested user'}), 403
 
     # error checking: check if user has signed up
     cursor = server.model.Cursor()

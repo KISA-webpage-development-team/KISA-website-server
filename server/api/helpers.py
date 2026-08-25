@@ -13,14 +13,42 @@ def token_required(func):
         if not token:
             return flask.jsonify({'message': 'Missing token'}), 401
         secret_key = os.getenv("SECRET_KEY")
+        if not secret_key:
+            return flask.jsonify({'error': 'Server auth is not configured'}), 500
         try:
             token = token.split(' ')[1]
-            jwt.decode(token, secret_key, algorithms='HS256')
+            claims = jwt.decode(token, secret_key, algorithms='HS256')
+            auth_email = claims.get('email') or claims.get('id') or claims.get('sub')
+            if not auth_email:
+                return flask.jsonify({'error': 'Token missing user identity'}), 401
+            flask.g.auth_email = auth_email
+            requested_email = kwargs.get('email')
+            if requested_email and unquote(requested_email) != auth_email:
+                return flask.jsonify({'error': 'Token user does not match requested user'}), 403
             return func(*args, **kwargs)
         except Exception as error:
             print(error)
             return flask.jsonify({'error': 'Decode failed'}), 401
     return token_test
+
+def authenticated_email():
+    return getattr(flask.g, 'auth_email', None)
+
+def admin_required(func):
+    @token_required
+    @wraps(func)
+    def admin_test(*args, **kwargs):
+        cursor = server.model.Cursor()
+        cursor.execute(
+            "SELECT email FROM admins WHERE email = %(email)s",
+            {
+                'email': authenticated_email()
+            }
+        )
+        if not cursor.fetchone():
+            return flask.jsonify({'error': 'Admin privileges required'}), 403
+        return func(*args, **kwargs)
+    return admin_test
 
 def count_comments(cursor, post):
     cursor.execute(

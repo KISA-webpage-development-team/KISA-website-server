@@ -9,7 +9,7 @@ from collections import defaultdict
 # /api/v2/pocha/payment
 
 @server.application.route('/api/v2/pocha/payment/<string:email>/<int:pochaID>/check-stock/', methods=['PUT'])
-# @token_required
+@token_required
 def reserve_cart_stock(email, pochaID):
     '''
     Check if all items in cart is in stock and if so, reserve them.
@@ -30,6 +30,8 @@ def reserve_cart_stock(email, pochaID):
         }
     )
     order = cursor.fetchone()
+    if not order:
+        return flask.jsonify({"error": "user cart is empty"}), 404
 
     # fetch all orderItems with orderID
     cursor.execute(
@@ -89,7 +91,7 @@ def reserve_cart_stock(email, pochaID):
     return flask.jsonify({"isStocked" : True}), 200
 
 @server.application.route('/api/v2/pocha/payment/<string:email>/<int:pochaID>/pay-result/', methods=['PUT'])
-# @token_required
+@token_required
 def pay_success_fail(email, pochaID):
     body = flask.request.get_json()
     result = body['result'] # 'success' | 'failure'
@@ -111,6 +113,8 @@ def pay_success_fail(email, pochaID):
             }
         )
         cart = cursor.fetchone()
+        if not cart:
+            return flask.jsonify({"error": "user cart is empty"}), 404
 
         # fetch orderItems associated to order first
         cursor.execute(
@@ -193,6 +197,8 @@ def pay_success_fail(email, pochaID):
             }
         )
         order = cursor.fetchone()
+        if not order:
+            return flask.jsonify({"error": "user cart is empty"}), 404
 
         # find orderItems
         cursor.execute(

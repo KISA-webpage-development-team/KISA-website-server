@@ -8,7 +8,7 @@ from collections import defaultdict
 # /api/v2/pocha/order
 
 @server.application.route('/api/v2/pocha/order/<string:email>/<int:pochaID>/', methods=['GET'])
-# @token_required
+@token_required
 def get_user_orders(email, pochaID):
     '''
     Fetch user's active orders by email and pochaID
@@ -73,7 +73,7 @@ def get_user_orders(email, pochaID):
     return flask.jsonify(response), 200
     
 @server.application.route('/api/v2/pocha/order/<string:email>/<int:pochaID>/closed/', methods=['GET'])
-# @token_required
+@token_required
 def get_user_closed_orders(email, pochaID):
     '''
     Fetch user's paid orders by email and pochaID

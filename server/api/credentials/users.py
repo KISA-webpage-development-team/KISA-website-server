@@ -43,14 +43,30 @@ def put_user(email):
     if not body:
         return flask.jsonify({'message': 'Bad request, empty body'}), 400
 
-    body['email'] = email
+    allowed_fields = {
+        'fullname',
+        'bornYear',
+        'bornMonth',
+        'bornDate',
+        'major',
+        'gradYear',
+        'linkedin',
+    }
+    values = {
+        key: value
+        for key, value in body.items()
+        if key in allowed_fields
+    }
+    if not values:
+        return flask.jsonify({'message': 'Bad request, no supported fields'}), 400
+    values['email'] = email
 
     cursor = server.model.Cursor()
     cursor.execute(
         "UPDATE users SET " +
-        ', '.join(map(lambda x: f'{x} = %({x})s', body.keys())) +
+        ', '.join(map(lambda x: f'{x} = %({x})s', values.keys() - {'email'})) +
         " WHERE email = %(email)s",
-        body
+        values
     )
 
     return flask.jsonify({'message': 'User updated successfully'}), 200
