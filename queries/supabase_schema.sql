@@ -6,8 +6,10 @@ CREATE TABLE IF NOT EXISTS users (
     email varchar(255) PRIMARY KEY,
     fullname varchar(255) NOT NULL,
     bornyear integer NOT NULL,
-    bornmonth integer NOT NULL CHECK (bornmonth BETWEEN 1 AND 12),
-    borndate integer NOT NULL CHECK (borndate BETWEEN 1 AND 31),
+    -- 0 means "not applicable": the KISA organisation account is a user row with no
+    -- birthday. Real people are still range-checked.
+    bornmonth integer NOT NULL CHECK (bornmonth = 0 OR bornmonth BETWEEN 1 AND 12),
+    borndate integer NOT NULL CHECK (borndate = 0 OR borndate BETWEEN 1 AND 31),
     major varchar(255) NOT NULL,
     gradyear integer NOT NULL,
     linkedin text,
@@ -38,7 +40,9 @@ CREATE TABLE IF NOT EXISTS comments (
     postid integer NOT NULL REFERENCES posts(postid) ON DELETE CASCADE,
     text text NOT NULL,
     iscommentofcomment boolean NOT NULL DEFAULT false,
-    parentcommentid integer REFERENCES comments(commentid) ON DELETE CASCADE,
+    -- No foreign key: the API stores 0 for a top-level comment, which is a sentinel
+    -- rather than a real commentid. MySQL never constrained this column either.
+    parentcommentid integer,
     anonymous boolean NOT NULL DEFAULT false,
     secret boolean NOT NULL DEFAULT false,
     created timestamp NOT NULL DEFAULT now()
