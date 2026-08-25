@@ -2,8 +2,9 @@
 
 import flask
 from flask_cors import CORS
-from flask_mysqldb import MySQL
 from flask_socketio import SocketIO
+from flask_mysqldb import MySQL
+import os
 
 
 # index page texts
@@ -21,7 +22,7 @@ instructions = '''
 application = flask.Flask(__name__)
 
 application.config.from_object('server.config')
-db = MySQL(application)
+db = None if os.getenv("DATABASE_ENGINE") == "postgres" else MySQL(application)
 CORS(application, origins=[
     "https://kisa-website-client-git-dev-umich-kisas-projects.vercel.app/",
     "https://www.umichkisa.com",
@@ -44,7 +45,6 @@ application.add_url_rule('/', 'index', (lambda: header_text +
 
 import server.api
 import server.model
-
 
 
 

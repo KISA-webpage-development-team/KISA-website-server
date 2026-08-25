@@ -338,12 +338,19 @@ def modify_cart(email, pochaID):
                 # delete lastly inserted orderItem
                 cursor.execute(
                     '''
-                    DELETE FROM orderItem 
-                    WHERE parentOrderID=%(parentOrderID)s 
-                    AND menuID=%(menuID)s 
-                    AND status=%(status)s
-                    ORDER BY orderItemID DESC 
-                    LIMIT 1
+                    DELETE FROM orderItem
+                    WHERE orderItemID = (
+                        SELECT orderItemID
+                        FROM (
+                            SELECT orderItemID
+                            FROM orderItem
+                            WHERE parentOrderID=%(parentOrderID)s
+                            AND menuID=%(menuID)s
+                            AND status=%(status)s
+                            ORDER BY orderItemID DESC
+                            LIMIT 1
+                        ) AS pending_order_item
+                    )
                     ''',
                     {
                         'parentOrderID': existing_order['orderID'],
@@ -436,11 +443,19 @@ def modify_cart(email, pochaID):
                     UPDATE orderItem
                     SET quantity = quantity - 1
                     WHERE parentOrderID = %(parentOrderID)s
-                    AND menuID = %(menuID)s;
+                    AND menuID = %(menuID)s
+                    ''',
+                    {
+                        'parentOrderID': existing_order['orderID'],
+                        'menuID': menuID
+                    }
+                )
+                cursor.execute(
+                    '''
                     DELETE FROM orderItem
                     WHERE parentOrderID = %(parentOrderID)s
                     AND menuID = %(menuID)s
-                    AND quantity = 0;
+                    AND quantity = 0
                     ''',
                     {
                         'parentOrderID': existing_order['orderID'],
