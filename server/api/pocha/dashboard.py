@@ -1,6 +1,6 @@
 import flask
 import server
-from ..helpers import token_required
+from ..helpers import admin_required, token_required
 from .notification import send_notification
 from collections import defaultdict
 
@@ -9,6 +9,7 @@ from collections import defaultdict
 # /api/v2/pocha/dashboard
 
 @server.application.route('/api/v2/pocha/dashboard/<int:pochaID>/', methods=['GET'])
+@admin_required
 def get_pocha_orders(pochaID):
     '''
     Fetch all active orders by pochaID
@@ -86,6 +87,7 @@ def get_pocha_orders(pochaID):
 
 
 @server.application.route('/api/v2/pocha/dashboard/<int:pochaID>/closed/', methods=['GET'])
+@admin_required
 def get_pocha_closed_orders(pochaID):
     '''
     Fetch all paid orders by pochaID
@@ -158,6 +160,7 @@ def get_pocha_closed_orders(pochaID):
     return flask.jsonify(response), 200    
 
 @server.application.route('/api/v2/pocha/dashboard/<int:orderItemID>/change-status/', methods=['PUT'])
+@admin_required
 def put_order_item_status(orderItemID):
     '''
     Change order item's status and emit socket event to appropriate user.
@@ -199,17 +202,16 @@ def put_order_item_status(orderItemID):
     is_immediate_prep = orderItem['isImmediatePrep']
     new_status = None
 
-    match status:
-        case 'pending':
-            new_status = 'preparing'
-        case 'preparing':
-            new_status = 'ready'
-        case 'ready':
-            new_status = 'closed'
-        case 'closed':
-            return flask.jsonify({'error': 'Order item already closed'}), 400
-        case _:
-            return flask.jsonify({'error': 'Invalid status'}), 400
+    if status == 'pending':
+        new_status = 'preparing'
+    elif status == 'preparing':
+        new_status = 'ready'
+    elif status == 'ready':
+        new_status = 'closed'
+    elif status == 'closed':
+        return flask.jsonify({'error': 'Order item already closed'}), 400
+    else:
+        return flask.jsonify({'error': 'Invalid status'}), 400
         
     if status == 'pending' and is_immediate_prep:
         new_status = 'ready'
@@ -266,6 +268,7 @@ def put_order_item_status(orderItemID):
     ), 200
 
 @server.application.route('/api/v2/pocha/dashboard/change-stock/', methods=['PUT'])
+@admin_required
 def put_menu_stock():
     '''
     Change stock quantity of menu
@@ -293,4 +296,3 @@ def put_menu_stock():
 
     # return success message
     return flask.jsonify({"message": "stock quantity changed"}), 200
-

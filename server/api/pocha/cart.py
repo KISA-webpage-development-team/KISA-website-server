@@ -17,7 +17,7 @@ from collections import defaultdict
 # /api/v2/pocha/cart
 
 @server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/', methods=['GET'])
-# @token_required
+@token_required
 def get_cart(email, pochaID):
     '''
     Return cart information using session email and pochaID
@@ -86,7 +86,7 @@ def get_cart(email, pochaID):
         return flask.jsonify({}), 200
 
 @server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/', methods=['POST', 'PATCH', 'DELETE'])
-# @token_required
+@token_required
 def modify_cart(email, pochaID):
     '''
     Add orderItem using session email, invoked when user adds item into cart
@@ -514,7 +514,7 @@ def modify_cart(email, pochaID):
         return flask.jsonify({"error": "invalid quantity"}), 400
 
 @server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/checkout-info/', methods=['GET'])
-# @token_required
+@token_required
 def get_cart_checkout_info(email, pochaID):
     '''
     Get total price of cart using user email and current pochaID
@@ -534,7 +534,10 @@ def get_cart_checkout_info(email, pochaID):
             'isPaid': False
         }
     )
-    orderID = cursor.fetchone()['orderID']
+    order = cursor.fetchone()
+    if not order:
+        return flask.jsonify({"error": "user cart is empty"}), 404
+    orderID = order['orderID']
 
     # fetch all orderItems with parentOrderID as fetched orderID
     cursor.execute(
@@ -574,7 +577,7 @@ def get_cart_checkout_info(email, pochaID):
     
     # return 404 not found when amount is 0, or cart is empty
     if amount == 0:
-        flask.jsonify({"error": "user cart is empty"}), 404
+        return flask.jsonify({"error": "user cart is empty"}), 404
 
     return flask.jsonify({
         "amount" : amount,

@@ -38,26 +38,36 @@ def add_user():
     if not body:
         return flask.jsonify({'message': 'Bad request, empty body'}), 400
     
-    # Missing required fields
-    if not (
-       body['fullname'] or
-       body['email'] or
-       body['bornYear'] or
-       body['bornMonth'] or
-       body['bornDate'] or
-       body['major'] or
-       body['gradYear']
-    ):
+    required_fields = [
+        'fullname',
+        'email',
+        'bornYear',
+        'bornMonth',
+        'bornDate',
+        'major',
+        'gradYear',
+    ]
+    missing_fields = [
+        field for field in required_fields
+        if body.get(field) in (None, '')
+    ]
+    if missing_fields:
        return flask.jsonify({'message': 'Bad request, required fields missing'}), 400
 
     cursor = server.model.Cursor()
+    allowed_fields = required_fields + ['linkedin']
+    values = {
+        field: body[field]
+        for field in allowed_fields
+        if field in body
+    }
 
     cursor.execute(
         "INSERT INTO users (" +
-        ', '.join(body.keys()) +
+        ', '.join(values.keys()) +
         ") VALUES (" +
-        ', '.join(map(lambda x: '%(' + x + ')s', body.keys())) + ")",
-        body
+        ', '.join(map(lambda x: '%(' + x + ')s', values.keys())) + ")",
+        values
     )
 
     return flask.jsonify({
