@@ -1,4 +1,4 @@
-"""KISAWEB model (connection with mySQL database)."""
+"""KISAWEB model (database and AWS integrations)."""
 import server
 import MySQLdb.cursors
 import boto3
@@ -7,31 +7,118 @@ import datetime
 import json
 from botocore.config import Config
 
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:
+    psycopg2 = None
+
+
+DATABASE_ENGINE = os.getenv("DATABASE_ENGINE", "mysql").lower()
+
+# Every camelCase column the API returns. Postgres folds unquoted identifiers to
+# lowercase, so the map is derived from this one list -- adding a column here is
+# the only step needed to keep the response shape stable.
+CAMEL_COLUMNS = [
+    "pochaID", "menuID", "orderID", "orderItemID", "parentPochaID", "parentOrderID",
+    "nameKor", "nameEng", "isImmediatePrep", "ageCheckRequired", "isPaid",
+    "readCount", "isAnnouncement", "isCommentOfComment", "parentCommentid",
+    "startDate", "endDate", "endpointARN",
+    "bornYear", "bornMonth", "bornDate", "gradYear",
+]
+
+PG_KEY_MAP = {column.lower(): column for column in CAMEL_COLUMNS}
+PG_KEY_MAP["count"] = "COUNT(*)"
+
+INSERT_RETURNING_COLUMNS = {
+    "insert into posts": "postid",
+    "insert into pocha": "pochaid",
+    "insert into menu": "menuid",
+    'insert into "order"': "orderid",
+}
+
+
+def _postgres_url():
+    return os.getenv("DATABASE_URL") or os.getenv("SUPABASE_DB_URL")
+
+
+def _normalize_row(row):
+    if row is None:
+        return None
+    return {PG_KEY_MAP.get(key, key): value for key, value in dict(row).items()}
+
+
+def _prepare_postgres_sql(sql):
+    sql = sql.replace("`order`", '"order"')
+    lowered = sql.lstrip().lower()
+    returning_column = None
+
+    if "returning" not in lowered:
+        for prefix, column in INSERT_RETURNING_COLUMNS.items():
+            if lowered.startswith(prefix):
+                sql = sql.rstrip().rstrip(";") + f" RETURNING {column}"
+                returning_column = column
+                break
+
+    return sql, returning_column
+
 class Cursor:
     def __init__(self):
-        self.cursor = server.db.connection.cursor(MySQLdb.cursors.DictCursor)
+        self._lastrowid = None
+        self.engine = DATABASE_ENGINE
+
+        if self.engine == "postgres":
+            if psycopg2 is None:
+                raise RuntimeError("psycopg2 is required when DATABASE_ENGINE=postgres")
+            database_url = _postgres_url()
+            if not database_url:
+                raise RuntimeError("DATABASE_URL or SUPABASE_DB_URL is required when DATABASE_ENGINE=postgres")
+            self.connection = psycopg2.connect(database_url)
+            self.cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            self.connection = server.db.connection
+            self.cursor = self.connection.cursor(MySQLdb.cursors.DictCursor)
     
     def execute(self, sql, argsdict):
+        returning_column = None
+        if self.engine == "postgres":
+            sql, returning_column = _prepare_postgres_sql(sql)
         self.cursor.execute(sql, argsdict)
+        if self.engine == "postgres" and returning_column:
+            row = self.cursor.fetchone()
+            self._lastrowid = row[returning_column] if row else None
 
     def fetchall(self):
-        return self.cursor.fetchall()
+        rows = self.cursor.fetchall()
+        if self.engine == "postgres":
+            return [_normalize_row(row) for row in rows]
+        return rows
     
     def fetchone(self):
-        return self.cursor.fetchone()
+        row = self.cursor.fetchone()
+        if self.engine == "postgres":
+            return _normalize_row(row)
+        return row
     
     def lastrowid(self):
+        if self.engine == "postgres":
+            return self._lastrowid
         return self.cursor.lastrowid
     
     def rowcount(self):
         return self.cursor.rowcount
     
     def rollback(self):
-        server.db.connection.rollback()
+        self.connection.rollback()
     
     def __del__(self):
-        server.db.connection.commit()
-        self.cursor.close()
+        try:
+            self.connection.commit()
+            self.cursor.close()
+            if self.engine == "postgres":
+                self.connection.close()
+        except Exception:
+            pass
 
 class AWSClient:
     def __init__(self):

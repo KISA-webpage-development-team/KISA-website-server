@@ -34,7 +34,7 @@ def get_posts_by_board_type(board_type):
         "LIMIT %(limit)s",
         {
             'type': board_type,
-            'isAnnouncement': 0,
+            'isAnnouncement': False,
             'limit': size * (page + 1)
         }
     )
@@ -79,7 +79,7 @@ def get_announcements_by_board_type(board_type):
         "ORDER BY postid DESC",
         {
             'type': board_type,
-            'isAnnouncement': 1
+            'isAnnouncement': True
         }
     )
     announcements = cursor.fetchall()
