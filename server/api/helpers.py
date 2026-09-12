@@ -6,30 +6,54 @@ import re
 from functools import wraps
 from urllib.parse import unquote
 
+def _authenticated_email():
+    """Return (email, None) for a valid bearer token, or (None, error response)."""
+    token = flask.request.headers.get('Authorization')
+    if not token:
+        return None, (flask.jsonify({'message': 'Missing token'}), 401)
+    secret_key = os.getenv("SECRET_KEY")
+    if not secret_key:
+        return None, (flask.jsonify({'error': 'Server auth is not configured'}), 500)
+    try:
+        token = token.split(' ')[1]
+        claims = jwt.decode(token, secret_key, algorithms='HS256')
+    except Exception as error:
+        print(error)
+        return None, (flask.jsonify({'error': 'Decode failed'}), 401)
+    auth_email = claims.get('email') or claims.get('id') or claims.get('sub')
+    if not auth_email:
+        return None, (flask.jsonify({'error': 'Token missing user identity'}), 401)
+    return auth_email, None
+
 def token_required(func):
+    """Require a valid token whose user is the email in the path."""
     @wraps(func)
     def token_test(*args, **kwargs):
-        token = flask.request.headers.get('Authorization')
-        if not token:
-            return flask.jsonify({'message': 'Missing token'}), 401
-        secret_key = os.getenv("SECRET_KEY")
-        if not secret_key:
-            return flask.jsonify({'error': 'Server auth is not configured'}), 500
-        try:
-            token = token.split(' ')[1]
-            claims = jwt.decode(token, secret_key, algorithms='HS256')
-            auth_email = claims.get('email') or claims.get('id') or claims.get('sub')
-            if not auth_email:
-                return flask.jsonify({'error': 'Token missing user identity'}), 401
-            flask.g.auth_email = auth_email
-            requested_email = kwargs.get('email')
-            if requested_email and unquote(requested_email) != auth_email:
-                return flask.jsonify({'error': 'Token user does not match requested user'}), 403
-            return func(*args, **kwargs)
-        except Exception as error:
-            print(error)
-            return flask.jsonify({'error': 'Decode failed'}), 401
+        auth_email, error = _authenticated_email()
+        if error:
+            return error
+        flask.g.auth_email = auth_email
+        requested_email = kwargs.get('email')
+        if requested_email and unquote(requested_email) != auth_email:
+            return flask.jsonify({'error': 'Token user does not match requested user'}), 403
+        return func(*args, **kwargs)
     return token_test
+
+def login_required(func):
+    """Require a valid token for any member; the path email need not be theirs.
+
+    The member directory lets a signed-in member view another member's profile,
+    posts and comments. Anything that changes a user's data still goes through
+    token_required.
+    """
+    @wraps(func)
+    def login_test(*args, **kwargs):
+        auth_email, error = _authenticated_email()
+        if error:
+            return error
+        flask.g.auth_email = auth_email
+        return func(*args, **kwargs)
+    return login_test
 
 def authenticated_email():
     return getattr(flask.g, 'auth_email', None)

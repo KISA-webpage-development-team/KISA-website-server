@@ -1,12 +1,12 @@
 import flask
 import server
-from ..helpers import fetch_user_posts, fetch_user_comments, token_required
+from ..helpers import fetch_user_posts, fetch_user_comments, token_required, login_required
 
 # Users API ------------------------------------------------------------
 # /api/v2/credentials/users
 @server.application.route("/api/v2/users/<string:email>/",
                   methods=['GET'])
-@token_required
+@login_required
 def get_user(email):
     cursor = server.model.Cursor()
 
@@ -101,7 +101,7 @@ def delete_user(email):
     
 @server.application.route("/api/v2/users/<string:email>/posts/",
                   methods=['GET'])
-@token_required
+@login_required
 def get_user_posts(email):
     cursor = server.model.Cursor()
 
@@ -131,7 +131,7 @@ def get_user_posts(email):
 
 @server.application.route("/api/v2/users/<string:email>/comments/",
                   methods=['GET'])
-@token_required
+@login_required
 def get_user_comments(email):
     cursor = server.model.Cursor()
 
