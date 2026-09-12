@@ -40,6 +40,7 @@ from server.api.pocha.dashboard import put_menu_stock
 from server.api.pocha.payment import reserve_cart_stock
 from server.api.pocha.payment import pay_success_fail
 from server.api.pocha.notification import register_token
+from server.api.pocha.socket import on_connect
 
 from server.api.images.presigned_url import presigned_url_for_post
 from server.api.images.presigned_url import presigned_url_for_get

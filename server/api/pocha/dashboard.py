@@ -1,5 +1,6 @@
 import flask
 import server
+from .socket import user_room
 from ..helpers import admin_required, token_required
 from .notification import send_notification
 from collections import defaultdict
@@ -249,7 +250,8 @@ def put_order_item_status(orderItemID):
         {
             'status': new_status,
             'orderItemID': orderItemID
-        }
+        },
+        to=user_room(email)
     )
     
     # send push notification (alert) when order is ready

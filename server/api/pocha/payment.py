@@ -1,5 +1,6 @@
 import flask
 import server
+from .socket import dashboard_room, user_room
 from ..helpers import token_required
 from .notification import send_notification
 from collections import defaultdict
@@ -175,7 +176,11 @@ def pay_success_fail(email, pochaID):
         )
 
         # emit on event "order-created"
-        server.sio.emit('order-created', {"newOrderItems": to_checkout})
+        # the staff dashboard for this pocha, and the person who ordered
+        server.sio.emit('order-created', {"newOrderItems": to_checkout},
+                        to=dashboard_room(pochaID))
+        server.sio.emit('order-created', {"newOrderItems": to_checkout},
+                        to=user_room(email))
 
         return flask.jsonify({"message": "success",}), 200
 
