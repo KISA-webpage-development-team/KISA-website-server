@@ -103,25 +103,21 @@ def count_likes(cursor, target, item):
 def fetch_user_posts(email):
     cursor = server.model.Cursor()
 
-    # Fetch posts associated with the given email
+    # The user's posts, newest first, each with its comment count
     cursor.execute(
         '''
-            SELECT postid, title, created, fullname, type, readCount, isAnnouncement 
+            SELECT postid, title, created, fullname, type, readCount, isAnnouncement,
+            (SELECT COUNT(*) FROM comments WHERE comments.postid = posts.postid) AS "commentsCount"
             FROM posts 
             WHERE email = %(email)s AND anonymous = %(anonymous)s
+            ORDER BY postid DESC
         ''',
         {
             'email': email,
             'anonymous': False
         }
     )
-    user_posts = cursor.fetchall()[::-1]
-
-    # Add commentsCount to each post
-    for post in user_posts:
-        count_comments(cursor, post)
-
-    return user_posts
+    return cursor.fetchall()
 
 def fetch_user_comments(email):
     cursor = server.model.Cursor()
@@ -160,42 +156,34 @@ def delete_child_comments(comment, cursor):
         }
     )
 
-def get_child_comments(comment, cursor):
-    # Before adding child comments, count likes for each comment
-    count_likes(cursor, "comment", comment)
+def fetch_comment_tree(cursor, postid):
+    """Top-level comments of a post, each carrying its nested childComments.
 
-    # Set fullname according to email of the commenter
+    Every comment of the post comes back in one query with the commenter's
+    name and like count; the tree is assembled here by parentCommentid.
+    """
     cursor.execute(
-        "SELECT fullname FROM users WHERE email = %(email)s",
+        "SELECT comments.*, users.fullname, "
+        "(SELECT COUNT(*) FROM commentlikes WHERE commentlikes.commentid = comments.commentid) AS \"likesCount\" "
+        "FROM comments "
+        "LEFT JOIN users ON users.email = comments.email "
+        "WHERE comments.postid = %(postid)s "
+        "ORDER BY comments.commentid",
         {
-            'email': comment['email']
+            'postid': postid
         }
     )
-    fullname = cursor.fetchone()
-    comment['fullname'] = fullname['fullname']
+    comments = cursor.fetchall()
 
-    # check for base case (if child comments does not exist)
-    cursor.execute(
-        "SELECT * FROM comments WHERE postid = %(postid)s "
-        "AND isCommentOfComment = %(isCommentOfComment)s "
-        "AND parentCommentid = %(parentCommentid)s",
-        {
-            'postid': comment['postid'],
-            'isCommentOfComment': True,
-            'parentCommentid': comment['commentid']
-        }
-    )
-    child_comments = cursor.fetchall()
-
-    # base case
-    if not child_comments:
+    children = {}
+    for comment in comments:
         comment['childComments'] = []
-    
-    # recursive case
-    else:
-        comment['childComments'] = [dict(child_comment) for child_comment in child_comments]
-        for child_comment in comment['childComments']:
-            get_child_comments(child_comment, cursor)
+        if comment['isCommentOfComment']:
+            children.setdefault(comment['parentCommentid'], []).append(comment)
+    for comment in comments:
+        comment['childComments'] = children.get(comment['commentid'], [])
+
+    return [comment for comment in comments if not comment['isCommentOfComment']]
 
 def check_orderItems_and_delete(cursor, existing_orderID):
     # check if orderItems are left for existing order

@@ -3,6 +3,7 @@ import server
 from .socket import dashboard_room, user_room
 from ..helpers import token_required
 from .notification import send_notification
+from .order_helpers import fetch_order_items
 from collections import defaultdict
 
 
@@ -117,46 +118,8 @@ def pay_success_fail(email, pochaID):
         if not cart:
             return flask.jsonify({"error": "user cart is empty"}), 404
 
-        # fetch orderItems associated to order first
-        cursor.execute(
-            """
-            SELECT orderItemID, status, menuID, quantity
-            FROM orderItem
-            WHERE parentOrderID = %(parentOrderID)s
-            """,
-            {
-                'parentOrderID': cart['orderID'],
-            }
-        )
-        to_checkout = cursor.fetchall()
-
-        # iterate through orderItems to add menu item to response
-        for orderItem in to_checkout:
-            cursor.execute(
-                """
-                SELECT * FROM menu
-                WHERE menuID = %(menuID)s
-                """,
-                {
-                    'menuID': orderItem['menuID']
-                }
-            )
-            orderItem['menu'] = cursor.fetchone()
-            del orderItem['menuID']
-
-            # fetch user information and append into orderItem
-            cursor.execute(
-                """
-                SELECT fullname FROM users
-                WHERE email = %(email)s
-                """,
-                {
-                    'email': email
-                }
-            )
-            orderItemFullname = cursor.fetchone()['fullname']
-            orderItem['ordererName'] = orderItemFullname
-            orderItem['ordererEmail'] = email
+        # the items being checked out, with menu and orderer, for the event
+        to_checkout = fetch_order_items(cursor, orderID=cart['orderID'], with_orderer=True)
 
         # change isPaid flag of order to 1
         cursor.execute(

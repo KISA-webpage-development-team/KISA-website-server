@@ -1,7 +1,6 @@
 import flask
 import server
 from ..helpers import token_required, check_orderItems_and_delete
-from collections import defaultdict
 
 # API ENDPOINTS: Create, Read, Update, Delete
 # REST API
@@ -22,14 +21,22 @@ def get_cart(email, pochaID):
     '''
     Return cart information using session email and pochaID
     '''
-    # check if order exists
+    # one row per menu in the unpaid order, quantities summed across its
+    # orderItem rows; no unpaid order or no items both come back empty
     cursor = server.model.Cursor()
     cursor.execute(
         '''
-        SELECT orderID FROM `order` 
-        WHERE email = %(email)s
-        AND parentPochaID = %(parentPochaID)s
-        AND isPaid = %(isPaid)s
+        SELECT m.menuID, m.nameKor, m.nameEng, m.price,
+        m.stock, m.isImmediatePrep, m.parentPochaID,
+        SUM(oi.quantity) AS quantity
+        FROM orderItem oi
+        JOIN `order` o ON o.orderID = oi.parentOrderID
+        JOIN menu m ON m.menuID = oi.menuID
+        WHERE o.email = %(email)s
+        AND o.parentPochaID = %(parentPochaID)s
+        AND o.isPaid = %(isPaid)s
+        GROUP BY m.menuID
+        ORDER BY MIN(oi.orderItemID)
         ''',
         {
             'email': email,
@@ -37,53 +44,14 @@ def get_cart(email, pochaID):
             'isPaid': False
         }
     )
-    existing_order = cursor.fetchone()
-    
-    # Case 1: order exists
-    if existing_order:
-        # find orderItems associated with the order
-        cursor.execute(
-            '''
-            SELECT quantity, menuID FROM orderItem
-            WHERE parentOrderID = %(parentOrderID)s
-            ''',
-            {
-                'parentOrderID': existing_order["orderID"]
-            }
-        )
-        orderItems = cursor.fetchall()
-
-        # iterate through list of orderItems
-        response = {}
-        for orderItem in orderItems:
-            # menuID key already exists in response dict
-            if orderItem['menuID'] in response:
-                response[orderItem['menuID']]['quantity'] += orderItem['quantity']
-
-            # menuID first encounter
-            else:
-                cursor.execute(
-                    '''
-                    SELECT menuID, nameKor, nameEng, price,
-                    stock, isImmediatePrep, parentPochaID
-                    FROM menu
-                    WHERE menuID = %(menuID)s
-                    ''',
-                    {
-                        'menuID': orderItem['menuID']
-                    }
-                )
-                menuInfo = cursor.fetchone()
-                response[orderItem['menuID']] = {
-                    'menu': menuInfo,
-                    'quantity': orderItem['quantity']
-                }
-        return flask.jsonify(response), 200
-    
-    # Case 2: order does not exists
-    else:
-        # return empty dictionary
-        return flask.jsonify({}), 200
+    response = {}
+    for row in cursor.fetchall():
+        quantity = row.pop('quantity')
+        response[row['menuID']] = {
+            'menu': row,
+            'quantity': quantity
+        }
+    return flask.jsonify(response), 200
 
 @server.application.route('/api/v2/pocha/cart/<string:email>/<int:pochaID>/', methods=['POST', 'PATCH', 'DELETE'])
 @token_required
@@ -534,14 +502,19 @@ def get_cart_checkout_info(email, pochaID):
     '''
     Get total price of cart using user email and current pochaID
     '''
-    # fetch order
+    # total and age check over every item of the unpaid order in one pass;
+    # no order, no items and a zero total are all "cart is empty"
     cursor = server.model.Cursor()
     cursor.execute(
         '''
-        SELECT orderID FROM `order`
-        WHERE parentPochaID = %(parentPochaID)s
-        AND email = %(email)s
-        AND isPaid = %(isPaid)s
+        SELECT SUM(m.price * oi.quantity) AS amount,
+        BOOL_OR(m.ageCheckRequired) AS "ageCheckRequired"
+        FROM orderItem oi
+        JOIN `order` o ON o.orderID = oi.parentOrderID
+        JOIN menu m ON m.menuID = oi.menuID
+        WHERE o.parentPochaID = %(parentPochaID)s
+        AND o.email = %(email)s
+        AND o.isPaid = %(isPaid)s
         ''',
         {
             'parentPochaID': pochaID,
@@ -549,52 +522,11 @@ def get_cart_checkout_info(email, pochaID):
             'isPaid': False
         }
     )
-    order = cursor.fetchone()
-    if not order:
-        return flask.jsonify({"error": "user cart is empty"}), 404
-    orderID = order['orderID']
-
-    # fetch all orderItems with parentOrderID as fetched orderID
-    cursor.execute(
-        '''
-        SELECT quantity, menuID FROM orderItem
-        WHERE parentOrderID = %(parentOrderID)s
-        ''',
-        {
-            'parentOrderID': orderID
-        }
-    )
-    orderItems = cursor.fetchall() # 모든 orderItem을 가져온다 
-
-    amount = 0.0
-    ageCheckRequired = False
-
-    # fetch price and ageCheckRequired with menuID as fetched orderItems' menuID
-    for orderItem in orderItems:
-        cursor.execute(
-            '''
-            SELECT price, ageCheckRequired FROM menu
-            WHERE menuID = %(menuID)s
-            ''',
-            {
-                'menuID': orderItem['menuID']
-            }
-        )
-        menu_price_ageCheckRequired = cursor.fetchone()
-
-        # add price to total amount
-        amount += menu_price_ageCheckRequired['price'] * orderItem['quantity']
-
-        # check ageCheckRequired from menu table (ageCheckRequired가 False인 경우만 들어가면 됨, 이미 True로 업데이트 됐으면 굳이 갈 필요 x)
-        if not ageCheckRequired:
-            if menu_price_ageCheckRequired['ageCheckRequired']:
-                ageCheckRequired = True
-    
-    # return 404 not found when amount is 0, or cart is empty
-    if amount == 0:
+    totals = cursor.fetchone()
+    if not totals or not totals['amount']:
         return flask.jsonify({"error": "user cart is empty"}), 404
 
     return flask.jsonify({
-        "amount" : amount,
-        "ageCheckRequired" : "true" if ageCheckRequired else "false"
+        "amount" : totals['amount'],
+        "ageCheckRequired" : "true" if totals['ageCheckRequired'] else "false"
     }), 200

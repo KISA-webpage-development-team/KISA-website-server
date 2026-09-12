@@ -1,6 +1,5 @@
 import flask
 import server
-from ..helpers import count_comments, count_likes
 
 # BOARDS API ------------------------------------------------------------
 # /api/v2/bulletin/boards
@@ -25,37 +24,38 @@ def get_posts_by_board_type(board_type):
     if (size != 10 and size != 20 and size != 30) or (page < 0):
         return flask.jsonify({'error': 'invalid pagination args'}), 400
 
-    # Fetch posts of the particular board type
+    # One page of posts with their like and comment counts in a single query
     cursor.execute(
-        "SELECT postid, type, title, fullname, readCount, isAnnouncement, created "
+        "SELECT postid, type, title, fullname, readCount, isAnnouncement, created, "
+        "(SELECT COUNT(*) FROM postlikes WHERE postlikes.postid = posts.postid) AS \"likesCount\", "
+        "(SELECT COUNT(*) FROM comments WHERE comments.postid = posts.postid) AS \"commentsCount\" "
         "FROM posts "
         "WHERE type = %(type)s AND isAnnouncement = %(isAnnouncement)s "
         "ORDER BY postid DESC "
-        "LIMIT %(limit)s",
+        "LIMIT %(limit)s OFFSET %(offset)s",
         {
             'type': board_type,
             'isAnnouncement': False,
-            'limit': size * (page + 1)
+            'limit': size,
+            'offset': page * size
         }
     )
-    posts = cursor.fetchall()
+    posts_in_page = cursor.fetchall()
 
-    # Return 204 NO CONTENT if no posts are in board type
-    if not posts:
-        return flask.jsonify({'response': 'No posts in board'}), 204
-    
-    # sort posts by postid
-    posts_in_page = sorted(posts[page * size : (page + 1) * size],
-                           key=lambda e : e["postid"],
-                           reverse=True)
-    
     if not posts_in_page:
+        # Distinguish an empty board from a page past the end
+        cursor.execute(
+            "SELECT postid FROM posts "
+            "WHERE type = %(type)s AND isAnnouncement = %(isAnnouncement)s "
+            "LIMIT 1",
+            {
+                'type': board_type,
+                'isAnnouncement': False
+            }
+        )
+        if not cursor.fetchone():
+            return flask.jsonify({'response': 'No posts in board'}), 204
         return flask.jsonify({'error': 'No posts in requested page'}), 404
-
-    # Count the number of comments and likes of each post
-    for post in posts_in_page:
-        count_likes(cursor, 'post', post)
-        count_comments(cursor, post)
 
     # render context
     context_url = flask.request.path
@@ -73,7 +73,8 @@ def get_announcements_by_board_type(board_type):
     cursor = server.model.Cursor()
 
     cursor.execute(
-        "SELECT postid, type, title, fullname, readCount, isAnnouncement, created "
+        "SELECT postid, type, title, fullname, readCount, isAnnouncement, created, "
+        "(SELECT COUNT(*) FROM comments WHERE comments.postid = posts.postid) AS \"commentsCount\" "
         "FROM posts "
         "WHERE type = %(type)s AND isAnnouncement = %(isAnnouncement)s "
         "ORDER BY postid DESC",
@@ -87,10 +88,6 @@ def get_announcements_by_board_type(board_type):
     if not announcements:
         return flask.jsonify({'response': f'No announcements for board type {board_type}'}), 204
 
-    # Count the number of comments of each post and add to response result
-    for announcement in announcements:
-        count_comments(cursor, announcement)
-    
     # render context
     context = {
         "results": announcements,

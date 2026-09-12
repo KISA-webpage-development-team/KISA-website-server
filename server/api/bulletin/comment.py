@@ -1,6 +1,6 @@
 import flask
 import server
-from ..helpers import delete_child_comments, get_child_comments, token_required
+from ..helpers import delete_child_comments, fetch_comment_tree, token_required
 
 
 # COMMENTS API ------------------------------------------------------------
@@ -102,24 +102,7 @@ def delete_comment(commentid):
 def get_comments(postid):
     cursor = server.model.Cursor()
 
-    # Fetch comments of depth 1 as list (not comment of comment)
-    cursor.execute(
-        "SELECT * FROM comments WHERE postid = %(postid)s "
-        "AND isCommentOfComment = %(isCommentOfComment)s",
-        {"postid": postid, "isCommentOfComment": False},
-    )
-    comments = cursor.fetchall()
-
-    # Return empty list if there is no comments
-    if not comments:
-        return flask.jsonify([])
-
-    # Convert SQL row object to a dictionary for JSON serialization
-    comments = [dict(comment) for comment in comments]
-
-    # Iterate through post comments
-    for comment_depth1 in comments:
-        get_child_comments(comment_depth1, cursor)
+    comments = fetch_comment_tree(cursor, postid)
 
     return flask.jsonify(comments)
 

@@ -66,6 +66,20 @@ To access endpoints that need bodies or headers specified, use curl.
 - Lastly, the destination api endpoint is specified.
 - For more information about curl, see the Ackowledgements.
 
+### Running the tests
+
+The tests run the real Flask app against a real Postgres database, so point
+them at a scratch one (never production: the schema is dropped and rebuilt):
+
+```
+pip install pytest
+TEST_DATABASE_URL=postgresql://postgres:test@localhost:54329/kisa_test pytest tests/
+```
+
+Response goldens live in `tests/golden/`; when a response is meant to change,
+run with `UPDATE_GOLDEN=1` and review the diff. `tests/test_procfile_worker.py`
+needs no database and starts gunicorn with the Procfile's settings.
+
 ## Authors
 
 Contributors names and contact info

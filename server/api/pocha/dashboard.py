@@ -3,7 +3,7 @@ import server
 from .socket import user_room
 from ..helpers import admin_required, token_required
 from .notification import send_notification
-from collections import defaultdict
+from .order_helpers import active_orders_by_status, closed_orders
 
 
 # POCHA APIS -----------------------------------------------------------
@@ -15,75 +15,8 @@ def get_pocha_orders(pochaID):
     '''
     Fetch all active orders by pochaID
     '''
-    # check if active order exists
     cursor = server.model.Cursor()
-    cursor.execute(
-        """
-        SELECT email, orderID FROM `order`
-        WHERE parentPochaID = %(parentPochaID)s 
-        AND isPaid = %(isPaid)s
-        """,
-        {
-            'parentPochaID': pochaID,
-            'isPaid': True
-        }
-    )
-    active_orders = cursor.fetchall()
-    
-    response = {
-        'pending': [],
-        'preparing': [],
-        'ready': []
-    }
-    
-    # fetch all orderItems with orderID
-    for active_order in active_orders:
-        cursor.execute(
-            """
-            SELECT orderItemID, status, quantity, menuID
-            FROM orderItem
-            WHERE parentOrderID = %(parentOrderID)s 
-            AND status != %(status)s
-            """,
-            {
-                'parentOrderID': active_order['orderID'],
-                'status': 'closed'
-            }
-        )
-        orderItems = cursor.fetchall()
-
-        # append into response based on status
-        for orderItem in orderItems:
-            # fetch menu information using menuID first
-            cursor.execute(
-                """
-                SELECT * FROM menu
-                WHERE menuID = %(menuID)s 
-                """,
-                {
-                    'menuID': orderItem['menuID']
-                }
-            )
-            menu_info = cursor.fetchone()
-            del orderItem["menuID"]
-            orderItem['menu'] = menu_info
-
-            # fetch user information and append into orderItem
-            cursor.execute(
-                """
-                SELECT fullname FROM users
-                WHERE email = %(email)s
-                """,
-                {
-                    'email': active_order['email']
-                }
-            )
-            orderItemFullname = cursor.fetchone()['fullname']
-            orderItem['ordererName'] = orderItemFullname
-            orderItem['ordererEmail'] = active_order['email']
-
-            response[orderItem['status']].append(orderItem)
-
+    response = active_orders_by_status(cursor, pochaID, with_orderer=True)
     return flask.jsonify(response), 200
 
 
@@ -93,72 +26,9 @@ def get_pocha_closed_orders(pochaID):
     '''
     Fetch all paid orders by pochaID
     '''
-    # check if paid order exists 
     cursor = server.model.Cursor()
-    cursor.execute(
-        """
-        SELECT email, orderID FROM `order`
-        WHERE parentPochaID = %(parentPochaID)s 
-        AND isPaid = %(isPaid)s
-        """,
-        {
-            'parentPochaID': pochaID,
-            'isPaid': True
-        }
-    )
-    paid_orders = cursor.fetchall()
-
-    response = {'closed' : []}
-
-    # fetch all orderItems with orderID
-    for paid_order in paid_orders:
-        cursor.execute(
-            """
-            SELECT orderItemID, status, quantity, menuID
-            FROM orderItem
-            WHERE parentOrderID = %(parentOrderID)s 
-            AND status = %(status)s
-            """,
-            {
-                'parentOrderID': paid_order['orderID'],
-                'status': 'closed'
-            }
-        )
-        orderItems = cursor.fetchall()
-
-        # append into response 
-        for orderItem in orderItems:
-            # fetch menu information using menuID first
-            cursor.execute(
-                """
-                SELECT * FROM menu
-                WHERE menuID = %(menuID)s 
-                """,
-                {
-                    'menuID': orderItem['menuID']
-                }
-            )
-            menu_info = cursor.fetchone()
-            del orderItem["menuID"]
-            orderItem['menu'] = menu_info
-
-            # fetch user information and append into orderItem
-            cursor.execute(
-                """
-                SELECT fullname FROM users
-                WHERE email = %(email)s
-                """,
-                {
-                    'email': paid_order['email']
-                }
-            )
-            orderItemFullname = cursor.fetchone()['fullname']
-            orderItem['ordererName'] = orderItemFullname
-            orderItem['ordererEmail'] = paid_order['email']
-
-            response['closed'].append(orderItem)
-            
-    return flask.jsonify(response), 200    
+    response = closed_orders(cursor, pochaID, with_orderer=True)
+    return flask.jsonify(response), 200
 
 @server.application.route('/api/v2/pocha/dashboard/<int:orderItemID>/change-status/', methods=['PUT'])
 @admin_required
