@@ -1,6 +1,9 @@
 """KISAWEB model (database and AWS integrations)."""
 import server
-import MySQLdb.cursors
+try:
+    import MySQLdb.cursors
+except ImportError:
+    MySQLdb = None
 import boto3
 import os
 import datetime
@@ -76,6 +79,8 @@ class Cursor:
             self.connection = psycopg2.connect(database_url)
             self.cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         else:
+            if MySQLdb is None:
+                raise RuntimeError("mysqlclient is required when DATABASE_ENGINE=mysql")
             self.connection = server.db.connection
             self.cursor = self.connection.cursor(MySQLdb.cursors.DictCursor)
     
