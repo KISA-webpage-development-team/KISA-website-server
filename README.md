@@ -101,6 +101,17 @@ Contributors names and contact info
   - Test database is in deployed AWS RDS instance, named 'testdb'.
   - Application now automatically generates an environment variable when runned.
   - Based on the environment variable, server will automatically access the appropriate database. When hosted by the local environment, it will access 'testdb', and in the production environment, it will access 'ebdb'.
+- v3 (2026-08)
+  - Database moved from AWS RDS MySQL to Supabase Postgres (`DATABASE_ENGINE=postgres`, `DATABASE_URL`), connecting through the transaction pooler.
+  - Postgres schema in `queries/supabase_schema.sql`; row-by-row migration and verification scripts in `migration/`.
+  - Authentication enforced on the pocha and account endpoints.
+- v3.1 (2026-09-12)
+  - MySQL dependencies dropped.
+  - Database connections pooled per request instead of opened per cursor; the pool waits for a free connection rather than overflowing.
+  - Socket.IO served from a gunicorn gevent worker with simple-websocket; pocha order events delivered to their owner and the pocha dashboard only.
+  - Read endpoints (pocha dashboard, orders, cart, checkout, boards, comment threads, profile posts) run a fixed number of queries regardless of data size.
+  - Test suite in `tests/` against a scratch Postgres, with golden responses and query-count assertions.
+  - Production event rehearsal and results in `rehearsal/`: 250 concurrent users, zero errors, 6.5% peak CPU.
 
 ## Acknowledgments
 
