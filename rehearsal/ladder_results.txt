@@ -1,0 +1,10 @@
+== AFTER Phase3  (2026-09-12 15:05) ==
+  board page           n=1   ok=1/1  median=0.85s  p95=0.85s  max=0.85s
+  board page           n=10  ok=10/10  median=0.80s  p95=0.81s  max=0.82s
+  board page           n=20  ok=20/20  median=0.83s  p95=0.86s  max=0.86s
+  board page           n=40  ok=40/40  median=0.80s  p95=0.86s  max=0.86s
+  comments (post 522)  n=1   ok=1/1  median=0.81s  p95=0.81s  max=0.81s
+  comments (post 522)  n=10  ok=10/10  median=0.77s  p95=0.79s  max=0.80s
+  comments (post 522)  n=20  ok=20/20  median=0.77s  p95=0.83s  max=0.86s
+  comments (post 522)  n=40  ok=40/40  median=0.88s  p95=0.91s  max=0.91s
+

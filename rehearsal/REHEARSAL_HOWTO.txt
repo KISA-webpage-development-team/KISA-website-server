@@ -1,0 +1,42 @@
+Pocha event rehearsal against production
+=========================================
+
+Run from the server directory with the project venv. One-time setup:
+
+  venv/bin/pip install -r requirements.txt websocket-client
+
+The AWS CLI profile kisa-web-app-dev-1 must exist (the script reads the
+database URL from the Elastic Beanstalk environment in memory) and .env must
+hold the production SECRET_KEY (used to sign the virtual users' tokens).
+
+Step 1, dry run (5 users, 5 second ramp, about 30 seconds):
+
+  venv/bin/python rehearsal/rehearsal.py 5 5
+
+  Expect a table of steps, "paid orders=5/5", and "rows left behind: 0".
+
+Step 2, the real run (250 users, 60 second ramp, about 2 to 3 minutes):
+
+  venv/bin/python rehearsal/rehearsal.py 250 60
+
+Results append to rehearsal/rehearsal_results.txt; past runs are kept there.
+RUN_LADDER.py is the lighter read-only check (board page and one comment
+thread at concurrency 1/10/20/40) and appends to ladder_results.txt.
+
+What rehearsal.py does: creates users loadtest-000..N@loadtest.invalid plus one
+admin, one pocha titled "LOADTEST auto-deleted" dated 2020 (never the active
+pocha) with 4 menus of stock 1,000,000. Every user connects a WebSocket, adds
+3 menus to the cart, reads cart and checkout info, reserves stock, pays, and
+reads orders. 3 admin sessions poll the dashboard and advance statuses. Then it
+deletes exactly those rows and prints the leftover count, which must be 0.
+
+If a run is interrupted before its cleanup, the next run refuses to start
+because load-test users still exist. Clean up by hand in the Supabase SQL
+editor, in this order:
+
+  DELETE FROM orderitem WHERE parentorderid IN (SELECT orderid FROM "order" WHERE parentpochaid IN (SELECT pochaid FROM pocha WHERE title = 'LOADTEST auto-deleted'));
+  DELETE FROM "order" WHERE parentpochaid IN (SELECT pochaid FROM pocha WHERE title = 'LOADTEST auto-deleted');
+  DELETE FROM menu WHERE parentpochaid IN (SELECT pochaid FROM pocha WHERE title = 'LOADTEST auto-deleted');
+  DELETE FROM pocha WHERE title = 'LOADTEST auto-deleted';
+  DELETE FROM admins WHERE email LIKE '%@loadtest.invalid';
+  DELETE FROM users WHERE email LIKE '%@loadtest.invalid';

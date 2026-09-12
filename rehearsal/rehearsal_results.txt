@@ -1,0 +1,38 @@
+== rehearsal: 5 users, 5s ramp, 3 admin dashboards  (2026-09-12 15:59) ==
+created pocha 19 with 4 menus and 5+1 users
+socket events received  order-created=20  status-change=51  socket errors=0
+step                 n errors  median     p95     max
+socket connect       8      0   1.03s   1.10s   1.10s
+cart add            15      0   0.82s   1.27s   1.28s
+cart get             5      0   0.81s   0.81s   0.82s
+checkout info        5      0   0.78s   0.80s   0.81s
+check stock          5      0   0.78s   0.79s   0.79s
+pay result           5      0   0.78s   0.79s   0.82s
+my orders            5      0   0.76s   0.80s   0.83s
+dashboard           45      0   0.80s   1.26s   1.81s
+change status       63     12   0.80s   0.84s   1.29s
+dashboard closed     3      0   0.90s   0.90s   1.29s
+non-success responses: change status 400 x12
+database after run: paid orders=5/5  order items=19  closed by admins=19
+cleanup: deleted 19 order items, 5 orders, 6 users, the pocha and its menus; rows left behind: 0
+instance CPU during the run (max of 1-minute samples, may lag a few minutes): None%
+
+== rehearsal: 250 users, 60s ramp, 3 admin dashboards  (2026-09-12 16:00) ==
+created pocha 20 with 4 menus and 250+1 users
+socket events received  order-created=1000  status-change=215  socket errors=0
+step                 n errors  median     p95     max
+socket connect     253      0   0.97s   1.05s   1.92s
+cart add           750      0   0.79s   0.85s   1.80s
+cart get           250      0   0.77s   0.83s   1.29s
+checkout info      250      0   0.77s   0.84s   1.79s
+check stock        250      0   0.78s   0.84s   1.32s
+pay result         250      0   0.78s   0.85s   1.80s
+my orders          250      0   0.77s   0.83s   1.86s
+dashboard           58      0   1.34s   1.71s   2.03s
+change status      216      1   0.78s   0.85s   1.97s
+dashboard closed     3      0   0.78s   0.78s   0.80s
+non-success responses: change status 400 x1
+database after run: paid orders=250/250  order items=932  closed by admins=19
+cleanup: deleted 932 order items, 250 orders, 251 users, the pocha and its menus; rows left behind: 0
+instance CPU during the run (max of 1-minute samples, may lag a few minutes): 6.516666666666667%
+
