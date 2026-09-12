@@ -1,1 +1,1 @@
-web: gunicorn --bind 127.0.0.1:8000 --workers 1 --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --worker-connections 1000 --timeout 120 application:application
+web: gunicorn --bind 127.0.0.1:8000 --workers 1 --worker-class gevent --worker-connections 1000 --timeout 120 application:application
