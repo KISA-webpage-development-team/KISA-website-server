@@ -1,5 +1,15 @@
 """KISA package initializer."""
 
+import sys
+
+# Socket.IO's WebSocket transport goes through simple-websocket, which works on
+# gunicorn's gevent worker. python-engineio picks gevent-websocket instead
+# whenever that package is importable, and its handler only exists under the
+# gevent-websocket worker, so a leftover install (Elastic Beanstalk never
+# uninstalls packages dropped from requirements.txt) would turn every WebSocket
+# upgrade into a 500. Blocking the import makes the choice explicit.
+sys.modules["geventwebsocket"] = None
+
 import flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
