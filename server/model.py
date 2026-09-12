@@ -8,6 +8,7 @@ import boto3
 import os
 import datetime
 import json
+import queue
 import threading
 import flask
 from botocore.config import Config
@@ -15,9 +16,21 @@ from botocore.config import Config
 try:
     import psycopg2
     import psycopg2.extras
-    import psycopg2.pool
 except ImportError:
     psycopg2 = None
+
+# Under the gevent worker in the Procfile, psycopg2's C-level waits would block
+# the whole event loop; psycogreen makes them cooperative. It only applies once
+# gevent has patched the socket module, so a plain threaded process is
+# unaffected.
+try:
+    from gevent import monkey as _gevent_monkey
+except ImportError:
+    _gevent_monkey = None
+
+if psycopg2 is not None and _gevent_monkey is not None and _gevent_monkey.is_module_patched("socket"):
+    from psycogreen.gevent import patch_psycopg
+    patch_psycopg()
 
 
 DATABASE_ENGINE = os.getenv("DATABASE_ENGINE", "mysql").lower()
@@ -69,11 +82,55 @@ def _prepare_postgres_sql(sql):
     return sql, returning_column
 
 # ---- connection pool -------------------------------------------------------
-# gunicorn serves this app with a single gthread worker, and each request uses
-# one connection, so the pool only has to cover that worker's threads. It is
-# built on first use, which keeps it on the right side of gunicorn's fork.
-POOL_MIN = int(os.getenv("DB_POOL_MIN", "1"))
+# Each request uses one connection, and the pool is the throttle on database
+# concurrency: when every connection is out, a request waits for one instead of
+# opening more, which under gevent is a cheap yield and keeps the process from
+# blowing past Supabase's connection limit. The pool is built on first use,
+# which keeps it on the right side of gunicorn's fork.
+#
+# psycopg2's own pool is deliberately not used: it closes every returned
+# connection beyond minconn, so under concurrency it reconnects on almost every
+# request, and it holds its lock across connect(), which serialises those
+# reconnects.
 POOL_MAX = int(os.getenv("DB_POOL_MAX", "16"))
+POOL_WAIT = float(os.getenv("DB_POOL_WAIT", "10"))
+
+
+class _Pool:
+    def __init__(self, database_url, maxconn):
+        self._database_url = database_url
+        self._idle = queue.LifoQueue()          # reuse the warmest connection first
+        self._slots = threading.Semaphore(maxconn)
+        self.in_use = 0                         # diagnostic only
+
+    def getconn(self, timeout):
+        if not self._slots.acquire(timeout=timeout):
+            raise RuntimeError(f"no database connection became free within {timeout:g}s")
+        try:
+            try:
+                connection = self._idle.get_nowait()
+            except queue.Empty:
+                connection = psycopg2.connect(self._database_url)
+        except BaseException:
+            self._slots.release()
+            raise
+        self.in_use += 1
+        return connection
+
+    def putconn(self, connection, close=False):
+        self.in_use -= 1
+        if close:
+            try:
+                connection.close()
+            except Exception:
+                pass
+        else:
+            self._idle.put(connection)
+        self._slots.release()
+
+    def idle(self):
+        return self._idle.qsize()
+
 
 _pool = None
 _pool_lock = threading.Lock()
@@ -87,53 +144,44 @@ def _get_pool():
                 database_url = _postgres_url()
                 if not database_url:
                     raise RuntimeError("DATABASE_URL or SUPABASE_DB_URL is required when DATABASE_ENGINE=postgres")
-                _pool = psycopg2.pool.ThreadedConnectionPool(POOL_MIN, POOL_MAX, database_url)
+                _pool = _Pool(database_url, POOL_MAX)
     return _pool
 
 
 def _checkout():
     """Take a live connection from the pool.
 
-    The pooler can drop an idle connection without the handle noticing, so every
-    checkout is probed first. That round trip costs far less than the TCP, TLS
-    and auth handshakes of opening a new connection.
-
-    Returns (connection, came_from_pool).
+    Waits up to POOL_WAIT seconds for a free slot. The pooler can drop an idle
+    connection without the handle noticing, so every checkout is probed first;
+    that round trip costs far less than the TCP, TLS and auth handshakes of
+    opening a new connection.
     """
     pool = _get_pool()
     failure = None
     for _ in range(3):
-        try:
-            connection = pool.getconn()
-        except psycopg2.pool.PoolError:
-            # Saturated. Fall back to a dedicated connection so a burst degrades
-            # to the old one-per-request behaviour rather than failing requests.
-            return psycopg2.connect(_postgres_url()), False
+        connection = pool.getconn(POOL_WAIT)
         try:
             if connection.closed:
                 raise psycopg2.InterfaceError("connection already closed")
             with connection.cursor() as probe:
                 probe.execute("SELECT 1")
             connection.rollback()
-            return connection, True
+            return connection
         except psycopg2.Error as error:
             failure = error
             pool.putconn(connection, close=True)
     raise failure
 
 
-def _checkin(connection, from_pool, close=False):
+def _checkin(connection, close=False):
     try:
-        if from_pool:
-            _get_pool().putconn(connection, close=close)
-        else:
-            connection.close()
+        _get_pool().putconn(connection, close=close)
     except Exception:
         pass
 
 
 def _request_connection():
-    """Return (connection, caller_owns_it, came_from_pool) for the request.
+    """Return (connection, caller_owns_it) for the current request.
 
     Flask-MySQLdb already gives every cursor in a request the same connection.
     Matching that on the Postgres side keeps it to one connection per request
@@ -141,14 +189,12 @@ def _request_connection():
     work rather than a single cursor's.
     """
     if not flask.has_app_context():
-        connection, from_pool = _checkout()
-        return connection, True, from_pool
+        return _checkout(), True
     connection = getattr(flask.g, "_db_connection", None)
     if connection is None:
-        connection, from_pool = _checkout()
+        connection = _checkout()
         flask.g._db_connection = connection
-        flask.g._db_from_pool = from_pool
-    return connection, False, getattr(flask.g, "_db_from_pool", True)
+    return connection, False
 
 
 class Cursor:
@@ -156,13 +202,12 @@ class Cursor:
         self._lastrowid = None
         self._closed = False
         self._owns_connection = False
-        self._from_pool = False
         self.engine = DATABASE_ENGINE
 
         if self.engine == "postgres":
             if psycopg2 is None:
                 raise RuntimeError("psycopg2 is required when DATABASE_ENGINE=postgres")
-            self.connection, self._owns_connection, self._from_pool = _request_connection()
+            self.connection, self._owns_connection = _request_connection()
             self.cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         else:
             if MySQLdb is None:
@@ -235,7 +280,7 @@ class Cursor:
                 self.connection.commit()
             except Exception:
                 broken = True
-            _checkin(self.connection, self._from_pool, close=broken)
+            _checkin(self.connection, close=broken)
 
     def __del__(self):
         # Safety net for a cursor built outside an application context.
@@ -255,7 +300,6 @@ def _release_request_connection(error):
     """
     try:
         connection = flask.g.pop("_db_connection", None)
-        from_pool = flask.g.pop("_db_from_pool", True)
     except Exception:
         return
     if connection is None:
@@ -269,7 +313,7 @@ def _release_request_connection(error):
             connection.rollback()
     except Exception:
         broken = True
-    _checkin(connection, from_pool, close=broken)
+    _checkin(connection, close=broken)
 
 
 class AWSClient:
