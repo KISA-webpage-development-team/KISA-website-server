@@ -8,11 +8,14 @@ import boto3
 import os
 import datetime
 import json
+import threading
+import flask
 from botocore.config import Config
 
 try:
     import psycopg2
     import psycopg2.extras
+    import psycopg2.pool
 except ImportError:
     psycopg2 = None
 
@@ -65,18 +68,101 @@ def _prepare_postgres_sql(sql):
 
     return sql, returning_column
 
+# ---- connection pool -------------------------------------------------------
+# gunicorn serves this app with a single gthread worker, and each request uses
+# one connection, so the pool only has to cover that worker's threads. It is
+# built on first use, which keeps it on the right side of gunicorn's fork.
+POOL_MIN = int(os.getenv("DB_POOL_MIN", "1"))
+POOL_MAX = int(os.getenv("DB_POOL_MAX", "16"))
+
+_pool = None
+_pool_lock = threading.Lock()
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        with _pool_lock:
+            if _pool is None:
+                database_url = _postgres_url()
+                if not database_url:
+                    raise RuntimeError("DATABASE_URL or SUPABASE_DB_URL is required when DATABASE_ENGINE=postgres")
+                _pool = psycopg2.pool.ThreadedConnectionPool(POOL_MIN, POOL_MAX, database_url)
+    return _pool
+
+
+def _checkout():
+    """Take a live connection from the pool.
+
+    The pooler can drop an idle connection without the handle noticing, so every
+    checkout is probed first. That round trip costs far less than the TCP, TLS
+    and auth handshakes of opening a new connection.
+
+    Returns (connection, came_from_pool).
+    """
+    pool = _get_pool()
+    failure = None
+    for _ in range(3):
+        try:
+            connection = pool.getconn()
+        except psycopg2.pool.PoolError:
+            # Saturated. Fall back to a dedicated connection so a burst degrades
+            # to the old one-per-request behaviour rather than failing requests.
+            return psycopg2.connect(_postgres_url()), False
+        try:
+            if connection.closed:
+                raise psycopg2.InterfaceError("connection already closed")
+            with connection.cursor() as probe:
+                probe.execute("SELECT 1")
+            connection.rollback()
+            return connection, True
+        except psycopg2.Error as error:
+            failure = error
+            pool.putconn(connection, close=True)
+    raise failure
+
+
+def _checkin(connection, from_pool, close=False):
+    try:
+        if from_pool:
+            _get_pool().putconn(connection, close=close)
+        else:
+            connection.close()
+    except Exception:
+        pass
+
+
+def _request_connection():
+    """Return (connection, caller_owns_it, came_from_pool) for the request.
+
+    Flask-MySQLdb already gives every cursor in a request the same connection.
+    Matching that on the Postgres side keeps it to one connection per request
+    instead of one per cursor, and makes an explicit rollback undo the request's
+    work rather than a single cursor's.
+    """
+    if not flask.has_app_context():
+        connection, from_pool = _checkout()
+        return connection, True, from_pool
+    connection = getattr(flask.g, "_db_connection", None)
+    if connection is None:
+        connection, from_pool = _checkout()
+        flask.g._db_connection = connection
+        flask.g._db_from_pool = from_pool
+    return connection, False, getattr(flask.g, "_db_from_pool", True)
+
+
 class Cursor:
     def __init__(self):
         self._lastrowid = None
+        self._closed = False
+        self._owns_connection = False
+        self._from_pool = False
         self.engine = DATABASE_ENGINE
 
         if self.engine == "postgres":
             if psycopg2 is None:
                 raise RuntimeError("psycopg2 is required when DATABASE_ENGINE=postgres")
-            database_url = _postgres_url()
-            if not database_url:
-                raise RuntimeError("DATABASE_URL or SUPABASE_DB_URL is required when DATABASE_ENGINE=postgres")
-            self.connection = psycopg2.connect(database_url)
+            self.connection, self._owns_connection, self._from_pool = _request_connection()
             self.cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         else:
             if MySQLdb is None:
@@ -116,14 +202,75 @@ class Cursor:
     def rollback(self):
         self.connection.rollback()
     
-    def __del__(self):
+    def close(self):
+        """Finish with this cursor. Idempotent.
+
+        Inside a request the connection goes back to the pool at teardown, not
+        here, so several cursors can share it.
+        """
+        if self._closed:
+            return
+        self._closed = True
+
+        if self.engine != "postgres":
+            # Flask-MySQLdb owns this connection and closes it itself.
+            try:
+                self.connection.commit()
+            except Exception:
+                pass
+            try:
+                self.cursor.close()
+            except Exception:
+                pass
+            return
+
         try:
-            self.connection.commit()
             self.cursor.close()
-            if self.engine == "postgres":
-                self.connection.close()
         except Exception:
             pass
+
+        if self._owns_connection:
+            broken = False
+            try:
+                self.connection.commit()
+            except Exception:
+                broken = True
+            _checkin(self.connection, self._from_pool, close=broken)
+
+    def __del__(self):
+        # Safety net for a cursor built outside an application context.
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+@server.application.teardown_appcontext
+def _release_request_connection(error):
+    """Commit and return the request's connection.
+
+    Doing this here rather than in Cursor.__del__ returns the connection when
+    the request ends instead of whenever the garbage collector runs, which is
+    what left backends sitting 'idle in transaction'.
+    """
+    try:
+        connection = flask.g.pop("_db_connection", None)
+        from_pool = flask.g.pop("_db_from_pool", True)
+    except Exception:
+        return
+    if connection is None:
+        return
+
+    broken = False
+    try:
+        if error is None:
+            connection.commit()
+        else:
+            connection.rollback()
+    except Exception:
+        broken = True
+    _checkin(connection, from_pool, close=broken)
+
 
 class AWSClient:
     def __init__(self):
