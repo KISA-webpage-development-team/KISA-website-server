@@ -44,6 +44,8 @@ CAMEL_COLUMNS = [
     "readCount", "isAnnouncement", "isCommentOfComment", "parentCommentid",
     "startDate", "endDate", "endpointARN",
     "bornYear", "bornMonth", "bornDate", "gradYear",
+    "carouselItemID", "imagePublicID", "imageVersion", "archivedAt",
+    "createdBy", "updatedBy", "effectiveStatus",
 ]
 
 PG_KEY_MAP = {column.lower(): column for column in CAMEL_COLUMNS}
