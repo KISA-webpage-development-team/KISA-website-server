@@ -1,7 +1,7 @@
 import flask
 import server
 import datetime
-from ..helpers import token_required
+from ..helpers import admin_required
 from collections import defaultdict
 
 from .image_helpers import move_image_to_pocha_folder, delete_temp_image, delete_existing_menu_image
@@ -40,24 +40,11 @@ def get_pocha():
         return flask.jsonify(pocharow), 200
 
 @server.application.route("/api/v2/pocha/", methods=["POST"])
-@token_required
+@admin_required
 def create_pocha():
     data = flask.request.json
 
     cursor = server.model.Cursor()
-
-    email = data.get("email")
-
-    # VALIDATION: email required
-    if not email:
-        return flask.jsonify({"message": "email is required"}), 400
-
-    # 1. if user is admin (if not, return 403)
-    cursor.execute("SELECT * FROM admins WHERE email = %(email)s", {"email": email})
-    admin_email = cursor.fetchone()
-
-    if not admin_email:
-        return flask.jsonify({"message": "user is not admin"}), 403
 
     # 2. create new pocha item ('pocha' table) with request body
     startDate = data.get("startDate")
@@ -162,24 +149,11 @@ def create_pocha():
     return flask.jsonify({"message": f"Pocha '{title}' created successfully"}), 201
 
 @server.application.route("/api/v2/pocha/<int:pochaid>/", methods=["PUT"])
-@token_required
+@admin_required
 def update_pocha(pochaid):
     data = flask.request.json
 
     cursor = server.model.Cursor()
-
-    email = data.get("email")
-
-    # VALIDATION: email required
-    if not email:
-        return flask.jsonify({"message": "email is required"}), 400
-
-    # 1. if user is admin (if not, return 403)
-    cursor.execute("SELECT * FROM admins WHERE email = %(email)s", {"email": email})
-    admin_email = cursor.fetchone()
-
-    if not admin_email:
-        return flask.jsonify({"message": "user is not admin"}), 403
 
     # 2. check if pocha exists
     cursor.execute(
