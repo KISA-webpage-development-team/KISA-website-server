@@ -42,7 +42,7 @@ import server  # noqa: E402
 import server.model  # noqa: E402
 
 TABLES = [
-    "notificationarns", "orderitem", '"order"', "menu", "pocha",
+    "carouselitems", "notificationarns", "orderitem", '"order"', "menu", "pocha",
     "commentlikes", "postlikes", "comments", "posts", "admins", "users",
 ]
 

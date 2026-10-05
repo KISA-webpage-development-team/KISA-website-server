@@ -45,6 +45,17 @@ from server.api.pocha.socket import on_connect
 from server.api.images.presigned_url import presigned_url_for_post
 from server.api.images.presigned_url import presigned_url_for_get
 
+# CAROUSEL APIS -------------------------------------------------------
+from server.api.carousel.items import get_carousel
+from server.api.carousel.items import get_carousel_admin
+from server.api.carousel.items import get_carousel_item
+from server.api.carousel.items import create_carousel_item
+from server.api.carousel.items import update_carousel_item
+from server.api.carousel.items import archive_carousel_item
+from server.api.carousel.items import restore_carousel_item
+from server.api.carousel.items import delete_carousel_item
+from server.api.carousel.items import put_carousel_order
+
 # JOBS APIS -----------------------------------------------------------
 from server.api.jobs.index import get_jobs
 from server.api.jobs.third_party.wanted.index import get_job_categories
