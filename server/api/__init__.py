@@ -56,6 +56,18 @@ from server.api.carousel.items import restore_carousel_item
 from server.api.carousel.items import delete_carousel_item
 from server.api.carousel.items import put_carousel_order
 
+# MEMBERS APIS --------------------------------------------------------
+from server.api.members.board import get_board
+from server.api.members.board import get_board_admin
+from server.api.members.board import create_board_year
+from server.api.members.board import publish_board_year
+from server.api.members.board import unpublish_board_year
+from server.api.members.board import delete_board_year
+from server.api.members.board import put_board_order
+from server.api.members.board import create_board_entry
+from server.api.members.board import update_board_entry
+from server.api.members.board import delete_board_entry
+
 # JOBS APIS -----------------------------------------------------------
 from server.api.jobs.index import get_jobs
 from server.api.jobs.third_party.wanted.index import get_job_categories

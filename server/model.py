@@ -46,6 +46,7 @@ CAMEL_COLUMNS = [
     "bornYear", "bornMonth", "bornDate", "gradYear",
     "carouselItemID", "imagePublicID", "imageVersion", "archivedAt",
     "createdBy", "updatedBy", "effectiveStatus",
+    "startYear", "boardMemberID", "classYear", "isLead",
 ]
 
 PG_KEY_MAP = {column.lower(): column for column in CAMEL_COLUMNS}
